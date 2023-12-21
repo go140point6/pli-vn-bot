@@ -1,0 +1,32 @@
+{
+  "name": "discordjs-v14-bot-template",
+  "version": "1.0.0",
+  "description": "Bot template using discordjs v14",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/go140point6/discordjs-v14-bot-template.git"
+  },
+  "keywords": [
+    "bot",
+    "v14",
+    "slashcommands",
+    "embeds",
+    "template"
+  ],
+  "author": "go140point6",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/go140point6/discordjs-v14-bot-template/issues"
+  },
+  "homepage": "https://github.com/go140point6/discordjs-v14-bot-template#readme",
+  "dependencies": {
+    "axios": "^1.6.2",
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1",
+    "log-timestamp": "^0.3.0"
+  }
+}
