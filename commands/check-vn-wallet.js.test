@@ -1,0 +1,31 @@
+// Example beep-boop (no embeds)
+const { SlashCommandBuilder } = require('discord.js');
+//const Xdc3 = require("xdc3");
+
+// const xdc3 = new Xdc3(
+//     new Xdc3.providers.HttpProvider(process.env.RPCURL)
+// )
+
+// //console.log(xdc3)
+// //xdc3.eth.getBlockNumber().then(console.log)
+
+// const addressToCheck = '0xf87A639bCE2064aBA1833a2ADeB1caD5800b46bD'
+
+// xdc3.eth.getBalance(addressToCheck)
+//     .then(balance => {
+//         const balanceInXDC = xdc3.utils.fromWei(balance, 'ether')
+
+//         console.log(`Balance of ${addressToCheck}: ${balanceInXDC} XDC`)
+//     })
+//     .catch(error => {
+//         console.error('Error:', error)
+//     })
+
+module.exports = {
+    data: new SlashCommandBuilder()
+        .setName('check-vn-wallet')
+        .setDescription('Replies with Boop!'),
+    async execute(interaction) {
+        await interaction.reply('Boop!');
+    },
+};

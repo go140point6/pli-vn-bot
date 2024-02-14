@@ -1,0 +1,273 @@
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Events, ComponentType, CommandInteractionOptionResolver } = require('discord.js');
+const client = require('../index');
+const { checkAddress } = require('../main/checkAddress');
+const { addAddress, removeAddress, verifyAddress } = require('../main/dbOperations');
+const { getAddressBalance } = require('../main/getBalance');
+
+const inProgress = new Set()
+var count = 0
+
+module.exports = {
+	data: new SlashCommandBuilder()
+		.setName('validator-utils')
+		.setDescription('utilities for validator nodes')
+		.addStringOption((option) =>
+		option
+			.setName("address")
+			.setDescription("What validator node address do you want to work with?")
+			.setRequired(true)
+			),
+	async execute(interaction) {
+		try {
+			if (inProgress.has(interaction.user.id)) {
+				count ++
+				if (count === 1) {
+					//await interaction.reply({ content: "Do not run multiple sessions of the same command. You have been warned.", ephemeral: true })	
+					await interaction.reply({ content: "Do not run multiple sessions of the same command. You have been warned." })	
+				} else if (count >= 2 && count <= 3) {
+					//await interaction.reply({ content: "Do not run multiple sessions of the same command. You have been warned again.", ephemeral: true })
+					await interaction.reply({ content: "Do not run multiple sessions of the same command. You have been warned again." })
+				} else if (count >= 4) {
+					//await interaction.reply({ content: "My overseer has disabled my ability to ban users. I shall ask him to reconsider that prohibition.", ephemeral: true })
+					await interaction.reply({ content: "My overseer has disabled my ability to ban users. I shall ask him to reconsider that prohibition." })
+					count = 0
+				}
+				return
+			}
+			inProgress.add(interaction.user.id)
+			await checkAddressEmbed(interaction)
+		} catch (error) {
+			console.error(error.message)
+			await interaction.reply("An error occurred while processing the command.")
+			}
+	}
+}
+
+const row = new ActionRowBuilder()
+.addComponents(
+	new ButtonBuilder()
+		.setCustomId('add')
+		.setLabel('ADD')
+		.setStyle(ButtonStyle.Success),
+	new ButtonBuilder()
+		.setCustomId('remove')
+		.setLabel('REMOVE')
+		.setStyle(ButtonStyle.Danger),
+	new ButtonBuilder()
+		.setCustomId('check')
+		.setLabel('CHECK')
+		.setStyle(ButtonStyle.Primary),
+	new ButtonBuilder()
+		.setCustomId('cancel')
+		.setLabel('CANCEL')
+		.setStyle(ButtonStyle.Secondary),
+)
+
+async function checkAddressEmbed(interaction) {
+	let address = interaction.options.getString("address", true)
+
+	const result = await checkAddress(address)
+	const user = interaction.user.id
+	const displayName = interaction.member.displayName
+
+	if (result.success) {
+		//console.log(user)
+		//console.log(displayName)
+		let balanceXDC = await getAddressBalance(result.result)
+		//console.log(balanceXDC)
+		await initialEmbed(interaction, result, user, displayName, balanceXDC)
+	} else {
+		result.result = address
+        let setDesc = 'The address you provided is not valid. Try again.'
+		let setFields =  [{ name: 'Address provided:', value: result.result },]
+		await errorAddressEmbed(interaction, result, setDesc, setFields)
+	}
+}
+
+async function errorAddressEmbed(interaction, result, setDesc, setFields) {
+
+	const errorAddressEmbed = new EmbedBuilder(result)
+	.setColor('DarkRed')
+	.setTitle(`Welcome to The Terminal`)
+	//.setAuthor({ name: client.user.username })
+	.setDescription(setDesc)
+	.setThumbnail(client.user.avatarURL())
+	.addFields(setFields)
+	//.setImage('https://onxrp-marketplace.s3.us-east-2.amazonaws.com/nft-images/00081AF4B6C6354AE81B765895498071D5E681DB44D3DE8F1589271700000598-32c83d6e902f8.png')
+	.setTimestamp()
+	//.setFooter({ text: `${address}` });
+
+	//await interaction.reply({ embeds: [errorAddressEmbed], ephemeral: true })
+	await interaction.reply({ embeds: [errorAddressEmbed] })
+}
+
+async function embedCombined(interaction, result, user, displayName, setDesc, setFields) {
+	const embedCombined = new EmbedBuilder(result, user, displayName)
+	.setColor('DarkRed')
+	.setTitle(`Welcome to The Terminal`)
+	//.setAuthor({ name: client.user.username })
+	.setDescription(setDesc)
+	.setThumbnail(client.user.avatarURL())
+	.addFields(setFields)
+	//.setImage('https://onxrp-marketplace.s3.us-east-2.amazonaws.com/nft-images/00081AF4B6C6354AE81B765895498071D5E681DB44D3DE8F1589271700000598-32c83d6e902f8.png')
+	.setTimestamp()
+	//.setFooter({ text: `${address}` })
+
+	return embedCombined
+}
+
+async function initialEmbed(interaction, result, user, displayName, balanceXDC) {
+	
+	let setDesc = `Do you want to ADD, REMOVE or CHECK this address?`
+	let setFields = [
+		{ name: 'Address provided (formatted and checksummed): ', value: result.result },
+		{ name: 'Address balance: ', value: `${balanceXDC} XDC` }
+	]
+
+	const embedCombinedInitial = await embedCombined(interaction, result, user, displayName, setDesc, setFields)
+	
+	//await interaction.reply({ embeds: [embedCombinedInitial], components: [row], ephemeral: true } )
+	await interaction.reply({ embeds: [embedCombinedInitial], components: [row] })
+
+	const collector = interaction.channel.createMessageComponentCollector({ componentType: ComponentType.Button, time: 20000 })
+
+	collector.on('collect', async i => {
+
+		await i.deferUpdate()
+
+        if (i.user.id === interaction.user.id && i.customId === 'add') {
+			
+			collector.resetTimer()
+			try {
+				const [res, res2] = await addAddress(result, user, displayName)
+
+				if (res) {
+					setDesc = ':white_check_mark: This address already exists in my databanks: ' + result.result
+					setFields = [{ name: 'Click REMOVE to remove it from my databanks or CANCEL to shut the system down', value: '\u200B' }]
+
+					const embedCombinedAdd = await embedCombined(interaction, result, user, displayName, setDesc, setFields)
+
+					//await interaction.editReply({ embeds: [embedCombinedAdd], components: [row], ephemeral: true })
+					await interaction.editReply({ embeds: [embedCombinedAdd], components: [row] })
+				} else {
+					if (res2) {
+						setDesc = ':white_check_mark: This address was added to my databanks: ' + result.result
+						setFields = [{ name: 'Click CHECK to verify my databanks or CANCEL to shut the system down', value: '\u200B' }]
+						
+						const embedCombinedAdd = await embedCombined(interaction, result, user, displayName, setDesc, setFields)
+	
+						//await interaction.editReply({ embeds: [embedCombinedAdd], components: [row], ephemeral: true })
+						await interaction.editReply({ embeds: [embedCombinedAdd], components: [row] })
+					} else {
+			
+						setDesc = ':x: Commitment to databanks failed verification. Please try again or ping my overseer.'
+						setFields = [{ name: 'Click ADD to add it to my databanks or CANCEL to shut the system down', value: '\u200B' }]
+						
+						const embedCombinedAdd = await embedCombined(interaction, result, user, displayName, setDesc, setFields)
+	
+						//await interaction.editReply({ embeds: [embedCombinedAdd], components: [row], ephemeral: true })
+						await interaction.editReply({ embeds: [embedCombinedAdd], components: [row] })
+					}
+				}
+			} catch (error) {
+				console.error(error.message)
+				collector.stop()
+			}
+
+        } else if (i.user.id === interaction.user.id && i.customId === 'remove') {
+
+			collector.resetTimer()
+			try {
+				const [res, res2] = await removeAddress(result, user, displayName)
+
+				if (!res) {
+					setDesc = ':x: This address does NOT exist in my databanks: ' + result.result
+					setFields = [{ name: 'Click ADD to add it to my databanks or CANCEL to shut the system down', value: '\u200B' }]
+					
+					const embedCombinedRemove = await embedCombined(interaction, result, user, displayName, setDesc, setFields)
+
+					//await interaction.editReply({ embeds: [embedCombinedRemove], components: [row], ephemeral: true })
+					await interaction.editReply({ embeds: [embedCombinedRemove], components: [row] })
+				} else {
+					if (!res2) {
+						setDesc = ':x: Removal from databanks failed verification. Please try again or ping my overseer.'
+						setFields = [{ name: 'Click REMOVE to remove it from my databanks or CANCEL to shut the system down', value: '\u200B' }]
+						
+						const embedCombinedAdd = await embedCombined(interaction, result, user, displayName, setDesc, setFields)
+	
+						//await interaction.editReply({ embeds: [embedCombinedAdd], components: [row], ephemeral: true })
+						await interaction.editReply({ embeds: [embedCombinedAdd], components: [row] })
+					} else {
+						setDesc = ':x: This address was removed from my databanks:  ' + result.result
+						setFields = [{ name: 'Click CHECK to verify my databanks or CANCEL to shut the system down', value: '\u200B' }]
+	
+						const embedCombinedRemove = await embedCombined(interaction, result, user, displayName, setDesc, setFields)
+	
+						//await interaction.editReply({ embeds: [embedCombinedRemove], components: [row], ephemeral: true })
+						await interaction.editReply({ embeds: [embedCombinedRemove], components: [row] })
+					}
+				}
+			} catch (error) {
+				console.error(error.message)
+				collector.stop()
+			}
+		
+		} else if (i.user.id === interaction.user.id && i.customId === 'check') {
+
+			collector.resetTimer()
+			try {
+				const [check] = await verifyAddress(result)
+				let balanceXDC = await getAddressBalance(result.result)
+				
+			 	if (check) {
+			 	setDesc = ':white_check_mark: This address already exists in my databanks: ' + result.result
+				setFields = [
+					{ name: 'Click REMOVE to remove it from my databanks or CANCEL to shut the system down', value: '\u200B' },
+					{ name: 'Address balance: ', value: `${balanceXDC} XDC` }
+				]
+
+				const embedCombinedCheck = await embedCombined(interaction, result, user, displayName, setDesc, setFields)
+
+				//await interaction.editReply({ embeds: [embedCombinedCheck], components: [row], ephemeral: true })
+				await interaction.editReply({ embeds: [embedCombinedCheck], components: [row] })
+			  	} else {
+				setDesc = ':x: This address does NOT exist in my databanks: ' + result.result
+				setFields = [{ name: 'Click ADD to add it to my databanks or CANCEL to shut the system down', value: '\u200B' }]
+
+				const embedCombinedCheck = await embedCombined(interaction, result, user, displayName, setDesc, setFields)
+
+				//await interaction.editReply({ embeds: [embedCombinedCheck], components: [row], ephemeral: true })
+				await interaction.editReply({ embeds: [embedCombinedCheck], components: [row] })
+				}  
+			} catch (error) {
+			  	console.error(error)
+				collector.stop()
+				}
+
+		} else if (i.user.id === interaction.user.id && i.customId === 'cancel') {
+			collector.stop()
+		} else {
+			i.reply({ content: `These buttons are not for you!`, ephemeral: true })
+		}
+	})
+
+    collector.on('end', async (collected, reason) => {
+
+		const shutdownEmbed = new EmbedBuilder()
+
+            .setColor('DarkRed')
+            .setTitle(`Welcome to The Terminal`)
+            //.setAuthor({ name: client.user.username })
+            .setDescription("Operation cancelled or timed out, systems shutting down.")
+            .setThumbnail(client.user.avatarURL())
+            //.addFields(embedFields)
+            //.setImage('https://onxrp-marketplace.s3.us-east-2.amazonaws.com/nft-images/00081AF4B6C6354AE81B765895498071D5E681DB44D3DE8F1589271700000598-32c83d6e902f8.png')
+            .setTimestamp()
+            //.setFooter({ text: 'Powered by OnTheDex.Live', iconURL: 'https://images2.imgbox.com/bb/cc/OJPcux6J_o.jpg' });
+        
+            //await interaction.editReply({ embeds: [shutdownEmbed], components: [], ephemeral: true })
+			await interaction.editReply({ embeds: [shutdownEmbed], components: [] })
+			inProgress.delete(interaction.user.id)
+			count = 0
+    })
+}

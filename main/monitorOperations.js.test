@@ -1,0 +1,149 @@
+const { ChannelType } = require('discord.js');
+const { getAllRows } = require('./dbOperations');
+
+// async function monitorAddresses() {
+//     try {
+//         const allRows = await getAllRows()
+//         //console.log("All addresses from onReady: ", allRows)
+
+//         // NexusTesting
+//         //const channelId = '1024013696382537788'
+//         const channelId = '1199839948589781113'
+        
+//         allRows.forEach(async row => {
+//             const balance = await getAddressBalance(row.address)
+//             if (balance < row.critical) {
+//                 console.log(`Critical! ${row.address}`)
+//                 const channel = client.channels.cache.get(channelId)
+//                 const user = client.users.cache.get(row.name)
+//                 const guild = await client.guilds.fetch(process.env.GUILD_ID)
+//                 console.log(row.name)
+//                 console.log(user)
+//                 console.log(guild)
+//                 if (channel) {
+//                     channel.send({
+//                         content: `Critical! <@${row.name}> validator address: ${row.address} is critically low!`, 
+//                         ephemeral: true,
+//                     })
+//                 } else {
+//                     console.error('Channel not found')
+//                 }
+//             } else if (balance < row.warning) {
+//                 console.log(`Warning! ${row.address}`)
+//                 const channel = client.channels.cache.get(channelId)
+//                 if (channel) {
+//                     channel.send({
+//                         //content: `Critical! <@${row.name}> validator address: ${row.address} is critically low!`, 
+//                         content: `This is your warning <@${row.name}> that validator address: ${row.address} is getting low.`, 
+//                         ephemeral: true,
+//                     })
+//                 } else {
+//                     console.error('Channel not found')
+//                 }
+
+//             }
+//         })
+//     } catch (error) {
+//         console.error("Error in gasCheck: ", error)
+//     }
+// }
+
+//setInterval(monitorAddresses, 60 * 1000)
+
+async function monitorAddressesThread() {
+    try {
+        const allRows = await getAllRows()
+        //console.log("All addresses from onReady: ", allRows)
+
+        // NexusTesting
+        //const channelId = '1024013696382537788'
+        // Bot Lab
+        const channelId = '1200166010225971240'
+
+        const effofexx = '816849883796996146'
+        const gadget78 = '708610006840377386'
+        const go140point6 = '567425551229386758'
+
+        let count = 0
+
+        //allRows.forEach(async row => {
+        for (const row of allRows) {
+            const balance = await getAddressBalance(row.address)
+            console.log('start of forEach', count)
+            if (balance < row.critical) {
+                console.log(`Critical! ${row.address}`)
+                // const channel = client.channels.cache.get(channelId)
+                // const user = client.users.cache.get(row.name)
+                // const guild = await client.guilds.fetch(process.env.GUILD_ID)
+                // console.log(row.name)
+                // //console.log(user)
+                // //console.log(guild)
+                // if (channel) {
+                //     try {
+                //         const thread = await channel.threads.create({
+                //             name: 'Alert',
+                //             type: ChannelType.PrivateThread,
+                //         })
+                        
+                //         //await thread.members.add(row.name)
+                //         await thread.send(`Critical! <@${row.name}> validator address: ${row.address} is critically low!`)
+                //     } catch (error) {
+                //         console.error(error)
+                //     }
+                // } else {
+                //     console.error('Channel not found')
+                // }
+            } else if (balance < row.warning) {
+                console.log(`Warning! ${row.address}`)
+                console.log('hit warning', count)
+                const channel = client.channels.cache.get(channelId)
+                const user = client.users.cache.get(row.name)
+                const guild = await client.guilds.fetch(process.env.GUILD_ID)
+                console.log(row.name)
+                //console.log(user)
+                //console.log(guild)
+                if (channel) {
+                    try {
+                        const thread = await channel.threads.create({
+                            name: 'Alert',
+                            type: ChannelType.PrivateThread,
+                        })
+                        
+                        //await thread.members.add(row.name)
+                        //await thread.send(`Critical! <@${row.name}> validator address: ${row.address} is critically low!`)
+                        console.log("before if", count)
+                        if (count === 0) {
+                            await thread.send(`Warning <@${effofexx}>, you have been summoned by my Overseer. This thread is yours and yours alone but know that you are being watched. Tread carefully.`)
+                            console.log("after first if", count)
+                        } else {
+                            console.log("2nd message", count)
+                            await thread.send(`Warning <@${gadget78}>, you have been summoned by my Overseer also. This thread is yours and yours alone but know that you are being watched. Tread carefully.`)
+                        }
+                        count++
+                    } catch (error) {
+                        console.error(error)
+                    }
+                } else {
+                    console.error('Channel not found')
+                }
+            }
+        }
+    } catch (error) {
+        console.error("Error in gasCheck: ", error)
+    }
+}    
+
+async function monitorMN() {
+    try {
+
+        
+
+    } catch(error) {
+        console.log(error)
+    }
+}
+
+module.exports = {
+    monitorAddressesThread,
+    monitorMN
+}
