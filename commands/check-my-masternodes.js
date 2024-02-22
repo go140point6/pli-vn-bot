@@ -14,7 +14,7 @@ module.exports = {
 		.setDescription('Health check your own mainnet and apothem masternodes.'),
 		async execute(interaction) {
 			try {
-				await interaction.deferReply()
+				//await interaction.deferReply()
 				await initialEmbed(interaction)
 			} catch (error) {
 				console.error(error.message)
@@ -40,6 +40,7 @@ async function embedCombined(interaction, setDesc, setFields) {
 
 async function initialEmbed(interaction) {
 	try {
+		//await interaction.deferReply()
 		const { rpcResults, wssResults } = await initialCheck(interaction)
 		//console.log(rpcResults)
 		//console.log(wssResults)
@@ -102,13 +103,13 @@ async function initialEmbed(interaction) {
 		if (setFields.length === 0) {
 			setFields.push({
 				name: 'You have no masternode in my databanks.',
-				value: 'Add your masternode(s) using the /add-my-masternode command.'
+				value: 'Add your masternode(s) using the /edit-masternode command.'
 			})
 		}
 
 	const embedCombinedInitial = await embedCombined(interaction, setDesc, setFields)
 		
-	await interaction.editReply({ embeds: [embedCombinedInitial], components: [] })
+	await interaction.reply({ embeds: [embedCombinedInitial], ephemeral: true })
 	} catch (error) {
 		console.log(error)
 	}
