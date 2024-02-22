@@ -133,7 +133,7 @@ async function onReady(client) {
 
     //getNodes()
     setPresence()
-    setInterval(setPresence, Math.max(1, 1 || 1) * 60 * 1000);
+    setInterval(setPresence, Math.max(1, 5 || 1) * 60 * 1000);
 
     //checkBalance()
     //setInterval(checkBalance, 60 * 1000)

@@ -11,7 +11,6 @@ const validatorData = [
 
 // Sample test data for rpc-mn
 const rpcMnData = [
-  ['https://erpc-mainnet.go140point6.com', '567425551229386758', true],
   ['https://erpc.xinfin.network', 'blocksscan', false],
   ['https://earpc.xinfin.network', 'blocksscan', false],
   ['https://rpc.primenumbers.xyz', 'prime-numbers', false]
@@ -19,7 +18,6 @@ const rpcMnData = [
 
 // Sample test data for wss-mn
 const wssMnData = [
-  ['wss://wss-mainnet.go140point6.com', '567425551229386758', true],
   ['wss://eaws.xinfin.network', 'blocksscan', false],
   ['wss://ews.xinfin.network', 'blocksscan', false],
   ['wss://ws.xinfin.network', 'blocksscan', false]

@@ -1,6 +1,8 @@
+const util = require('util');
 const sqlite3 = require('sqlite3').verbose();
 
 const db = new sqlite3.Database('./data/validators.db')
+const dbGetAsync = util.promisify(db.get)
 
 async function addAddress(result, user) {
     //Query the DB for this address
@@ -132,11 +134,140 @@ async function checkWss(isPublic, userId) {
     })
 }
 
+// Check the db to see if rpc and/or websocket already present
+async function checkMn(rpc, wss) {
+    try {
+        const query1 = 'SELECT COUNT(*) AS rpcCount FROM rpc_mn WHERE mn = ?';
+        const query2 = 'SELECT COUNT(*) AS wssCount FROM wss_mn WHERE mn = ?';
+
+        const [rpcResult, wssResult] = await Promise.all([
+            dbGetAsync.call(db, query1, [rpc]),
+            dbGetAsync.call(db, query2, [wss])
+        ]);
+
+        const rpcCount = `rpc.${rpcResult.rpcCount}`
+        const wssCount = `wss.${wssResult.wssCount}`
+
+        return { 
+            rpc: rpcCount, 
+            wss: wssCount 
+        }
+    } catch (err) {
+        console.error(err.message);
+        throw err;
+    }
+}
+
+async function verifyMn(table, mn) {
+    return new Promise((res, rej) => {
+        const query = `SELECT COUNT(*) AS count FROM ${table} WHERE mn = ?`
+
+        db.get(query, [mn], (err, row) => {
+            if (err) {
+                console.log(err.message)
+                rej(err)
+            } else {
+                const valueExists = row.count > 0
+                //console.log(valueExists)
+                res(valueExists)
+            }
+        })
+    })
+
+}
+
+async function addMn(RpcOrWss, mn, owner) {
+    let table
+
+    if (RpcOrWss === 'rpc') {
+        table = 'rpc_mn'
+    } else if (RpcOrWss === 'wss') {
+        table = 'wss_mn'
+    }
+
+    try {
+
+        const private = 1
+        const insert = db.prepare(`INSERT OR IGNORE INTO ${table} (mn, owner, private) VALUES (?, ?, ?)`)
+        insert.run(mn, owner, private)
+        insert.finalize()
+
+        let verifyMnResult = await verifyMn(table, mn)
+        return verifyMnResult
+
+    } catch (err) {
+        console.error(err.message)
+        throw err
+    }
+}
+
+async function verifyOwner(rpc, wss, owner) {
+    try {
+        const query1 = 'SELECT COUNT(*) AS rpcCount FROM rpc_mn WHERE mn = ?';
+        const query2 = 'SELECT COUNT(*) AS wssCount FROM wss_mn WHERE mn = ?';
+        const query3 = 'SELECT COUNT(*) AS rpcOwnerCount FROM rpc_mn WHERE mn = ? AND owner = ?';
+        const query4 = 'SELECT COUNT(*) AS wssOwnerCount FROM wss_mn WHERE mn = ? AND owner = ?';
+
+        const [rpcCountResult, wssCountResult, rpcOwnerCountResult, wssOwnerCountResult] = await Promise.all([
+            dbGetAsync.call(db, query1, [rpc]),
+            dbGetAsync.call(db, query2, [wss]),
+            dbGetAsync.call(db, query3, [rpc, owner]),
+            dbGetAsync.call(db, query4, [wss, owner])
+        ]);
+
+        let rpcVerify, wssVerify
+
+        if (rpcCountResult.rpcCount === 0) {
+            rpcVerify = 'rpc.2'; // RPC missing from the database
+        } else { 
+            rpcVerify = rpcOwnerCountResult.rpcOwnerCount === 1 ? 'rpc.1' : 'rpc.2'; // RPC present and owner matches (1) or doesn't match (2)
+        }
+
+        if (wssCountResult.wssCount === 0) {
+            wssVerify = 'wss.2'; // RPC missing from the database
+        } else { 
+            wssVerify = wssOwnerCountResult.wssOwnerCount === 1 ? 'rpc.1' : 'rpc.2'; // Websocket present and owner matches (1) or doesn't match (2)
+        }
+
+        return { rpc: rpcVerify, wss: wssVerify };
+    } catch (err) {
+        console.error(err.message);
+        throw err;
+    }
+}
+
+async function removeMn(RpcOrWss, mn, owner) {
+    let table
+
+    if (RpcOrWss === 'rpc') {
+        table = 'rpc_mn'
+    } else if (RpcOrWss === 'wss') {
+        table = 'wss_mn'
+    }
+
+    try {
+        const remove = db.prepare(`DELETE FROM ${table} WHERE mn = ? AND owner = ?`)
+        remove.run(mn, owner)
+        remove.finalize()
+
+        let verifyMnResult = await verifyMn(table, mn)
+        return verifyMnResult
+
+    } catch (err) {
+        console.error(err.message)
+        throw err
+    }
+}
+
 module.exports = {
     addAddress,
     removeAddress,
     verifyAddress,
     getAllRows,
     checkRpc,
-    checkWss
+    checkWss,
+    checkMn,
+    addMn,
+    removeMn,
+    verifyOwner
 }
