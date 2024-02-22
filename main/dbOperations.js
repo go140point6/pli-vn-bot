@@ -218,15 +218,15 @@ async function verifyOwner(rpc, wss, owner) {
         let rpcVerify, wssVerify
 
         if (rpcCountResult.rpcCount === 0) {
-            rpcVerify = 'rpc.2'; // RPC missing from the database
+            rpcVerify = 'rpcOwner.2'; // RPC missing from the database
         } else { 
-            rpcVerify = rpcOwnerCountResult.rpcOwnerCount === 1 ? 'rpc.1' : 'rpc.2'; // RPC present and owner matches (1) or doesn't match (2)
+            rpcVerify = rpcOwnerCountResult.rpcOwnerCount === 1 ? 'rpcOwner.1' : 'rpcOwner.2'; // RPC present and owner matches (1) or doesn't match (2)
         }
 
         if (wssCountResult.wssCount === 0) {
-            wssVerify = 'wss.2'; // Websocket missing from the database
+            wssVerify = 'wssOwner.2'; // Websocket missing from the database
         } else { 
-            wssVerify = wssOwnerCountResult.wssOwnerCount === 1 ? 'wss.1' : 'wss.2'; // Websocket present and owner matches (1) or doesn't match (2)
+            wssVerify = wssOwnerCountResult.wssOwnerCount === 1 ? 'wssOwner.1' : 'wssOwner.2'; // Websocket present and owner matches (1) or doesn't match (2)
         }
 
         return { rpc: rpcVerify, wss: wssVerify };

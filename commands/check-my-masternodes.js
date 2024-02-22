@@ -49,8 +49,8 @@ async function initialEmbed(interaction, inProgress) {
 	try {
 		//await interaction.deferReply()
 		const { rpcResults, wssResults } = await initialCheck(interaction)
-		//console.log(rpcResults)
-		//console.log(wssResults)
+		console.log(rpcResults)
+		console.log(wssResults)
 		
 		let setDesc = 'This is a health check of your masternodes:'
 		let setFields = []

@@ -115,9 +115,9 @@ async function initialMessage(interaction, inProgress) {
 				const verifyOwnerResults = await verifyOwner(rpc, wss, owner)
 				//console.log(verifyOwnerResults.rpc)
 				//console.log(verifyOwnerResults.wss)
-				//console.log(verifyOwnerResults)
+				console.log(verifyOwnerResults)
 				
-				if (verifyOwnerResults.rpc == 'rpc.2' || verifyOwnerResults.wss == 'wss.2') {
+				if (verifyOwnerResults.rpc == 'rpcOnwer.2' || verifyOwnerResults.wss == 'wssOwner.2') {
 					setDesc = `You are not the owner of one or both of these resources. Please check and run the command again.`
 					setFields = [
 						{ name: `RPC:`, value: `${rpc}` },
