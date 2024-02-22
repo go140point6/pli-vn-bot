@@ -224,9 +224,9 @@ async function verifyOwner(rpc, wss, owner) {
         }
 
         if (wssCountResult.wssCount === 0) {
-            wssVerify = 'wss.2'; // RPC missing from the database
+            wssVerify = 'wss.2'; // Websocket missing from the database
         } else { 
-            wssVerify = wssOwnerCountResult.wssOwnerCount === 1 ? 'rpc.1' : 'rpc.2'; // Websocket present and owner matches (1) or doesn't match (2)
+            wssVerify = wssOwnerCountResult.wssOwnerCount === 1 ? 'wss.1' : 'wss.2'; // Websocket present and owner matches (1) or doesn't match (2)
         }
 
         return { rpc: rpcVerify, wss: wssVerify };

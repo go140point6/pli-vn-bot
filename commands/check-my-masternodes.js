@@ -12,10 +12,17 @@ module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('my-masternodes')
 		.setDescription('Health check your own mainnet and apothem masternodes.'),
-		async execute(interaction) {
+		async execute(interaction, inProgress) {
+			console.log(inProgress)
 			try {
+				if (inProgress.has(interaction.user.id)) {
+					console.log(inProgress)
+						await interaction.reply({ content: "Do not run commands until the last one had been completed or canceled. You have been warned.", ephemeral: true })	
+					return
+				} 
+				console.log(inProgress)
 				//await interaction.deferReply()
-				await initialEmbed(interaction)
+				await initialEmbed(interaction, inProgress)
 			} catch (error) {
 				console.error(error.message)
 				await interaction.reply("An error occurred while processing the command.")
@@ -38,7 +45,7 @@ async function embedCombined(interaction, setDesc, setFields) {
 	return embedCombined
 }
 
-async function initialEmbed(interaction) {
+async function initialEmbed(interaction, inProgress) {
 	try {
 		//await interaction.deferReply()
 		const { rpcResults, wssResults } = await initialCheck(interaction)

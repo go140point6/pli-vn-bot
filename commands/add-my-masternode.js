@@ -43,10 +43,19 @@ module.exports = {
 		.setName('edit-masternode')
 		.setDescription('Edit your masternode RPC and Websocket.'),
 	
-		async execute(interaction) {
+		async execute(interaction, inProgress) {
+			console.log(inProgress)
 			try {
+				if (inProgress.has(interaction.user.id)) {
+					console.log(inProgress)
+						await interaction.reply({ content: "Do not run commands until the last one had been completed or canceled. You have been warned.", ephemeral: true })	
+					return
+				} else {
+					inProgress.add(interaction.user.id)
+				}
+				console.log(inProgress)
 				await interaction.showModal(modal)
-				await initialMessage(interaction)
+				await initialMessage(interaction, inProgress)
 			} catch (error) {
 				console.error(error.message)
 				await interaction.reply("An error occurred while processing the command.")
@@ -69,7 +78,7 @@ async function embedCombined(setDesc, setFields) {
 	return embedCombined
 }
 
-async function initialMessage(interaction) {
+async function initialMessage(interaction, inProgress) {
 	try {
 		const modalResponse = await interaction.awaitModalSubmit({
 			filter: (i) =>
@@ -93,11 +102,13 @@ async function initialMessage(interaction) {
 
 				const embedCombinedValidation = await embedCombined(embedDescFieldsResults.desc, embedDescFieldsResults.fields)
 				await modalResponse.reply({ embeds: [embedCombinedValidation], ephemeral: true })
+				inProgress.delete(interaction.user.id)
 				return
 			} 
 
 			// checkMnResults will have 0 (missing) or 1 (present) for rpc or wss
 			const checkMnResults = await checkMn(rpc, wss)
+			console.log(checkMnResults)
 
 			// Verify ownership of masternodes
 			if (checkMnResults.rpc == 'rpc.1' || checkMnResults.wss == 'wss.1') {
@@ -244,6 +255,7 @@ async function initialMessage(interaction) {
 
 				const embedCombinedShutdown = await embedCombined(setDesc, setFields)
 				await modalResponse.editReply({ embeds: [embedCombinedShutdown], components: [], ephemeral: true })
+				inProgress.delete(interaction.user.id)
 			})
 		}
 	} catch (error) {
