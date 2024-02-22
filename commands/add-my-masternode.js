@@ -46,13 +46,13 @@ module.exports = {
 		async execute(interaction, inProgress) {
 			console.log(inProgress)
 			try {
-				if (inProgress.has(interaction.user.id)) {
-					console.log(inProgress)
-						await interaction.reply({ content: "Do not run commands until the last one had been completed or canceled. You have been warned.", ephemeral: true })	
-					return
-				} else {
-					inProgress.add(interaction.user.id)
-				}
+				//if (inProgress.has(interaction.user.id)) {
+				//	console.log(inProgress)
+				//		await interaction.reply({ content: "Do not run commands until the last one had been completed or canceled. You have been warned.", ephemeral: true })	
+				//	return
+				//} else {
+				//	inProgress.add(interaction.user.id)
+				//}
 				console.log(inProgress)
 				await interaction.showModal(modal)
 				await initialMessage(interaction, inProgress)
@@ -83,7 +83,7 @@ async function initialMessage(interaction, inProgress) {
 		const modalResponse = await interaction.awaitModalSubmit({
 			filter: (i) =>
 			i.customId === 'mn-modal' && i.user.id === interaction.user.id,
-			time: 60000,
+			time: 30000,
 		})
 
 		let owner = interaction.user.id
