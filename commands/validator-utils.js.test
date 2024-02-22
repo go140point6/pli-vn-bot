@@ -88,7 +88,7 @@ async function errorAddressEmbed(interaction, result, setDesc, setFields) {
 
 	const errorAddressEmbed = new EmbedBuilder(result)
 	.setColor('DarkRed')
-	.setTitle(`Welcome to The Terminal`)
+	.setTitle(`Welcome to Plugin Bot`)
 	//.setAuthor({ name: client.user.username })
 	.setDescription(setDesc)
 	.setThumbnail(client.user.avatarURL())
@@ -104,7 +104,7 @@ async function errorAddressEmbed(interaction, result, setDesc, setFields) {
 async function embedCombined(interaction, result, user, displayName, setDesc, setFields) {
 	const embedCombined = new EmbedBuilder(result, user, displayName)
 	.setColor('DarkRed')
-	.setTitle(`Welcome to The Terminal`)
+	.setTitle(`Welcome to Plugin Bot`)
 	//.setAuthor({ name: client.user.username })
 	.setDescription(setDesc)
 	.setThumbnail(client.user.avatarURL())
@@ -256,7 +256,7 @@ async function initialEmbed(interaction, result, user, displayName, balanceXDC) 
 		const shutdownEmbed = new EmbedBuilder()
 
             .setColor('DarkRed')
-            .setTitle(`Welcome to The Terminal`)
+            .setTitle(`Welcome to Plugin Bot`)
             //.setAuthor({ name: client.user.username })
             .setDescription("Operation cancelled or timed out, systems shutting down.")
             .setThumbnail(client.user.avatarURL())

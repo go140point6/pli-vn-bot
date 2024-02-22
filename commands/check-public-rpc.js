@@ -25,7 +25,7 @@ module.exports = {
 async function embedCombined(interaction, setDesc, setFields) {
 	const embedCombined = new EmbedBuilder()
 	.setColor('DarkRed')
-	.setTitle(`Welcome to The Terminal`)
+	.setTitle(`Welcome to Plugin Bot`)
 	//.setAuthor({ name: client.user.username })
 	.setDescription(setDesc)
 	.setThumbnail(client.user.avatarURL())
