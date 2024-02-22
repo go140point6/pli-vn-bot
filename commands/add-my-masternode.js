@@ -92,7 +92,7 @@ async function initialMessage(interaction) {
 				const embedDescFieldsResults = await embedDescFields(validationResults, rpc, wss)
 
 				const embedCombinedValidation = await embedCombined(embedDescFieldsResults.desc, embedDescFieldsResults.fields)
-				await modalResponse.reply({ embeds: [embedCombinedValidation] })
+				await modalResponse.reply({ embeds: [embedCombinedValidation], ephemeral: true })
 				return
 			} 
 
@@ -243,7 +243,7 @@ async function initialMessage(interaction) {
 				let setFields = []
 
 				const embedCombinedShutdown = await embedCombined(setDesc, setFields)
-				await modalResponse.editReply({ embeds: [embedCombinedShutdown], components: [] })
+				await modalResponse.editReply({ embeds: [embedCombinedShutdown], components: [], ephemeral: true })
 			})
 		}
 	} catch (error) {
