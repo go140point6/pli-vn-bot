@@ -15,11 +15,11 @@ module.exports = {
 		async execute(interaction, inProgress) {
 			console.log(inProgress)
 			try {
-				if (inProgress.has(interaction.user.id)) {
-					console.log(inProgress)
-						await interaction.reply({ content: "Do not run commands until the last one had been completed or canceled. You have been warned.", ephemeral: true })	
-					return
-				} 
+			// 	if (inProgress.has(interaction.user.id)) {
+			// 		console.log(inProgress)
+			// 			await interaction.reply({ content: "Do not run commands until the last one had been completed or canceled. You have been warned.", ephemeral: true })	
+			// 		return
+			// 	} 
 				console.log(inProgress)
 				//await interaction.deferReply()
 				await initialEmbed(interaction, inProgress)
