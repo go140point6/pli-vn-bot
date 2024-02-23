@@ -46,13 +46,13 @@ module.exports = {
 		async execute(interaction, inProgress) {
 			console.log(inProgress)
 			try {
-				//if (inProgress.has(interaction.user.id)) {
-				//	console.log(inProgress)
-				//		await interaction.reply({ content: "Do not run commands until the last one had been completed or canceled. You have been warned.", ephemeral: true })	
-				//	return
-				//} else {
-				//	inProgress.add(interaction.user.id)
-				//}
+				if (inProgress.has(interaction.user.id)) {
+					console.log(inProgress)
+						await interaction.reply({ content: "Do not run multiple sessions of the edit-masternode command, the first session will timeout in less than 30 seconds. You have been warned.", ephemeral: true })	
+					return
+				} else {
+					inProgress.add(interaction.user.id)
+				}
 				console.log(inProgress)
 				await interaction.showModal(modal)
 				await initialMessage(interaction, inProgress)
@@ -259,7 +259,9 @@ async function initialMessage(interaction, inProgress) {
 			})
 		}
 	} catch (error) {
-		console.error(error)
+		console.error("The modal has timed out.")
+		inProgress.delete(interaction.user.id)
+		//console.error(error)
 	}
 }
 
