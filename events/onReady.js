@@ -88,14 +88,15 @@ async function onReady(client) {
 
     async function setPresence() {
         try {
-            let symbol = 'plugin'
+            //let symbol = 'plugin'
             let fixed = '4'
             
             const up = "\u2B08"
             const down = "\u2B0A"
             const mid = "\u22EF"
 
-            const { currentPrice, priceChange } = await getPrices(symbol, fixed)
+            //const { currentPrice, priceChange } = await getPrices(symbol, fixed)
+            const currentPrice = await getPrices(fixed)
 
             const guild = await client.guilds.cache.get(`${process.env.GUILD_ID}`)
             const member = await guild.members.cache.get(`${process.env.CLIENT_ID}`)
