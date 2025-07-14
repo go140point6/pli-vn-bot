@@ -122,7 +122,7 @@ async function onReady(client) {
             member.setNickname(`PLI ${arrow} $${currentPrice}`)
             client.user.setPresence({
                 activities: [{
-                name: `v2.0 nodes: ${nodeCount}`,
+                name: `v2.0/2.4 nodes: ${nodeCount}`,
                 type: ActivityType.Watching
                 }]
             })

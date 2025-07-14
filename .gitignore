@@ -130,3 +130,8 @@ dist
 .pnp.*
 data/validators.db
 data/validators.db.test
+data/validators.db.old
+data/validators.db.current
+commands/add-my-masternode.js.test
+.gitignore
+commands/check-my-masternodes.js.test
