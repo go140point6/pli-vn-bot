@@ -4,33 +4,35 @@ const Xdc3 = require('xdc3');
 const FluxABI = require('@goplugin/contracts/abi/v0.6/FluxAggregator.json');
 
 const xdc3 = new Xdc3(new Xdc3.providers.HttpProvider(process.env.RPCURL));
+// Stores user IDs of those who have passed DM test during this session
+const dmConfirmedUsers = new Set();
 
 //const CONTRACT_ADDR = '0x6Fb5E127F59f49c848CC204A9a9a575CA52C1cD3';
 //const CONTRACT_ADDR = '0xEe28565FF7583dcB188554BE434665b4235fBCDb';
 //const NODE_ADDR     = '0xf87A639bCE2064aBA1833a2ADeB1caD5800b46bD';
 
-// Map of Discord user IDs → Node addresses
-const USER_NODE_MAP = {
-  '852173737901817906': '0xef3eDD2A4bc9f0B89d85A9F864861367724b5677',
-  '879268108471246849': '0x80a173Bf40399ea6FF73a4d7840097CA936eB9E7',
-  '779370797264273479': '0x40b66A878B4ED273d8DEc50baf8C94180A68A317',
-  '567425551229386758': '0xf87A639bCE2064aBA1833a2ADeB1caD5800b46bD',
-  '921461299433582592': '',
-  '372291963111604224': '0x8Cbe01A3fDD4b5f46ae0F458DBC81A8942014D91',
-  '891449142881185823': '0xb4c1d912e72a73CE9Db619Ebf85f362B2afFf75E',
-  '862957519503753226': '0xC7df2F7c7b3BF1306b4c9E9eD7fEd17fF616DCC8',
-  '1206088204839551067': '0xC95e8E2e5c352804e4A92c9d65550e00080e7219',
-  '835144024105025597': '0x863a5e49f36141aB82a33a5CF1B80a0A71Ab382f',
-  '852434672793288724': '0x844164dFCCEa1dE1FC7fcf8b2Af7466869714AE4',
-  '868345686750547968': '0xF2fa19442a0F0321d89ed82C92dE6b6Fe94B6803',
-  '894779081638432778': '0xB58025956dc1E3DB04dCB33AB8F3Ff8BF47D6B95',
-  '874715940976226376': '0x1BB113F429Fd87A37e10008394BDe5Bd50EcDE47',
-  '934254613270523994': '0x1B114bB44C7E138d65A1740D73edBDf49ca89daF',
-  '566025247783125022': '0xc18667740E58E856C91e3D7Cefc642A995037d99',
-  '409851282438881280': '0x91D3F0b746bEbfbCA9c613F8C77d6271A3cd7190',
-  '1058071222396649473': '0x95e2f7a41eB04FBadDe4550Aa12B5e014a402F66',
-  '911654996393726004': '0x155e87c1CCC244d6b517Ff14e94f4612982e9538',
-};
+// // Map of Discord user IDs → Node addresses
+// const USER_NODE_MAP = {
+//   '852173737901817906': '0xef3eDD2A4bc9f0B89d85A9F864861367724b5677',
+//   '879268108471246849': '0x80a173Bf40399ea6FF73a4d7840097CA936eB9E7',
+//   '779370797264273479': '0x40b66A878B4ED273d8DEc50baf8C94180A68A317',
+//   '567425551229386758': '0xf87A639bCE2064aBA1833a2ADeB1caD5800b46bD',
+//   '921461299433582592': '',
+//   '372291963111604224': '0x8Cbe01A3fDD4b5f46ae0F458DBC81A8942014D91',
+//   '891449142881185823': '0xb4c1d912e72a73CE9Db619Ebf85f362B2afFf75E',
+//   '862957519503753226': '0xC7df2F7c7b3BF1306b4c9E9eD7fEd17fF616DCC8',
+//   '1206088204839551067': '0xC95e8E2e5c352804e4A92c9d65550e00080e7219',
+//   '835144024105025597': '0x863a5e49f36141aB82a33a5CF1B80a0A71Ab382f',
+//   '852434672793288724': '0x844164dFCCEa1dE1FC7fcf8b2Af7466869714AE4',
+//   '868345686750547968': '0xF2fa19442a0F0321d89ed82C92dE6b6Fe94B6803',
+//   '894779081638432778': '0xB58025956dc1E3DB04dCB33AB8F3Ff8BF47D6B95',
+//   '874715940976226376': '0x1BB113F429Fd87A37e10008394BDe5Bd50EcDE47',
+//   '934254613270523994': '0x1B114bB44C7E138d65A1740D73edBDf49ca89daF',
+//   '566025247783125022': '0xc18667740E58E856C91e3D7Cefc642A995037d99',
+//   '409851282438881280': '0x91D3F0b746bEbfbCA9c613F8C77d6271A3cd7190',
+//   '1058071222396649473': '0x95e2f7a41eB04FBadDe4550Aa12B5e014a402F66',
+//   '911654996393726004': '0x155e87c1CCC244d6b517Ff14e94f4612982e9538',
+// };
 
 // List of 11 FluxAggregator contract addresses
 const CONTRACTS = [
@@ -53,6 +55,7 @@ module.exports = {
     .setDescription('Check statistics on your validator'),
 
   async execute(interaction) {
+    const USER_NODE_MAP = interaction.client.userNodeMap;
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const discordId = interaction.user.id;
@@ -62,6 +65,7 @@ module.exports = {
       return interaction.editReply(`❌ Your Discord ID is **not** an active validator.`);
     }
 
+    //const nodeAddr = USER_NODE_MAP[discordId];
     const nodeAddr = USER_NODE_MAP[discordId];
 
     if (!nodeAddr || nodeAddr.trim() === '') {
@@ -112,5 +116,25 @@ module.exports = {
       `⛽ Current amount of XDC gas available to your node \`${nodeAddr}\`:\n\n` +
       `💰 **${balanceInXDC}**\n`
     );
-  },
+
+    const userId = interaction.user.id;
+
+    if (!dmConfirmedUsers.has(userId)) {
+      try {
+        // Attempt a very low-profile DM
+        await interaction.user.send('👍 I can DM you!  You will receive low gas and other non-interactive alerts here.');
+        dmConfirmedUsers.add(userId); // Mark as confirmed for this bot session
+      } catch (dmError) {
+        console.warn(`Could not DM user ${interaction.user.id}:`, dmError.message);
+
+        await interaction.followUp({
+          content:
+            "⚠️ I wasn't able to send you a DM. This means I won't be able to alert you privately for low gas and other non-interactive alerts.\n" +
+            "As a bot, I'm not allowed to have friends. Please enable DMs from all server members in **User Settings → Privacy & Safety** if you want to receive these alerts.",
+          ephemeral: true,
+        });
+        dmConfirmedUsers.add(userId); // Confirm that alert was blocked for this bot session
+      }
+    }
+  }
 };

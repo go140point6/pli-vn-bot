@@ -3,11 +3,10 @@ require('dotenv').config();
 const fs = require('node:fs');
 // Node's native path utility module. path helps construct paths to access files and directories. One of the advantages of the path module is that it automatically detects the operating system and uses the appropriate joiners.
 const path = require('node:path');
-//const client = require('../index');
 const { REST, Routes, Collection, ChannelType, ActivityType, MembershipScreeningFieldType } = require('discord.js');
 const axios = require('axios');
 const { getAddressBalance } = require('../main/getBalance');
-const { getAllRows } = require('../main/dbOperations');
+const { getAllRows } = require('../main/dbOperations.js');
 const { getPrices } = require('../utils/getPrices');
 const { getNodes } = require('../utils/getNodes');
 const { clearRoles, setRed, setGreen } = require('../utils/setRoles')
@@ -74,12 +73,57 @@ async function onReady(client) {
     //     }
     // }, Math.max(1, 5 || 1) * 60 * 1000) // every 5 minutes
 
-    async function checkBalance() {
-        try {
-            const balance = await getAddressBalance(addressToCheck);
-            console.log(`Balance of ${addressToCheck}: ${balance} XDC`);
-        } catch (error) {
-            console.error('Error:', error);
+    // async function checkBalance() {
+    //     try {
+    //         const balance = await getAddressBalance(addressToCheck);
+    //         console.log(`Balance of ${addressToCheck}: ${balance} XDC`);
+    //     } catch (error) {
+    //         console.error('Error:', error);
+    //     }
+    // }
+
+    // async function checkBalances() {
+    //     const userNodeMap = client.userNodeMap;
+
+    //     for (const [discordId, address] of Object.entries(userNodeMap)) {
+    //         if (!address || !address.trim()) continue;
+
+    //         try {
+    //             const balance = await getAddressBalance(address);
+    //             console.log(`Balance of ${address} (user ${discordId}): ${balance} XDC`);
+    //         } catch (error) {
+    //             console.error(`Error checking balance for ${address} (user ${discordId}):`, error);
+    //         }
+    //     }
+    // }
+
+    async function checkBalances() {
+        const userNodeMap = client.userNodeMap;
+
+        for (const [discordId, address] of Object.entries(userNodeMap)) {
+            if (!address || !address.trim()) continue;
+
+            try {
+                const balance = await getAddressBalance(address);
+                console.log(`Balance of ${address} (user ${discordId}): ${balance} XDC`);
+
+                const numericBalance = parseFloat(balance);
+                if (numericBalance < 5) {
+                    try {
+                        const user = await client.users.fetch(discordId);
+                        await user.send(
+                            `⚠️ Heads up! Your validator node at \`${address}\` only has **${numericBalance} XDC** available.\n` +
+                            `Please top up your gas balance to avoid disruptions.`
+                        );
+                        console.log(`🔔 Sent low-balance alert to user ${discordId}`);
+                    } catch (dmError) {
+                        console.warn(`❌ Could not DM user ${discordId}:`, dmError.message);
+                    }
+                }
+
+            } catch (error) {
+                console.error(`Error checking balance for ${address} (user ${discordId}):`, error);
+            }
         }
     }
 
@@ -136,8 +180,8 @@ async function onReady(client) {
     setPresence()
     setInterval(setPresence, Math.max(1, 5 || 1) * 60 * 1000);
 
-    //checkBalance()
-    //setInterval(checkBalance, 60 * 1000)
+    checkBalances()
+    setInterval(checkBalances, 12 * 60 * 60 * 1000) // every 12 hours
 
     //setInterval(monitorAddressesThread, 60 * 1000)
 
@@ -145,7 +189,7 @@ async function onReady(client) {
 
 
 async function getXRP() {
-    await axios.get(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=plugin`).then(res => {
+    await axios.get(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=ripple`).then(res => {
                if (res.data && res.data[0].current_price) {
                 const currentXRP = res.data[0].current_price.toFixed(4) || 0 
                 console.log("XRP current price: " + currentXRP);

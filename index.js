@@ -6,11 +6,16 @@ const { onReady } = require('./events/onReady');
 const { onInteraction } = require('./events/onInteraction');
 const { onMessage } = require('./events/onMessage');
 const { validateEnv } = require('./utils/validateEnv');
+const USER_NODE_MAP = require('./main/userNodeMap');
 
 (async () => {
     validateEnv();
 
     const client = new Client({ intents: GatewayIntentBits });
+
+    // Make userNodeMap accessible globally via client
+    client.userNodeMap = USER_NODE_MAP;
+
     module.exports = client;
 
     client.once(Events.ClientReady, async() => await onReady(client));
