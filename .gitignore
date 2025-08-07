@@ -135,3 +135,6 @@ data/validators.db.current
 commands/add-my-masternode.js.test
 .gitignore
 commands/check-my-masternodes.js.test
+data/users.csv
+data/validator_contracts.csv
+data/validators.csv

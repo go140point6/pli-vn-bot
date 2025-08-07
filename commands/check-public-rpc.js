@@ -3,14 +3,10 @@ const client = require('../index');
 const { testRPCReachability, testRPCBlockchainSync, testLatestBlockNumber } = require('../main/rpcCheck');
 const { checkRpc } = require('../main/dbOperations');
 
-// const embed = new EmbedBuilder()
-// 	.setTitle('check-rpc')
-// 	.setDescription('health check the rpc nodes in my databanks.')
-
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('check-public-rpc')
-		.setDescription('Health check the public RPC nodes in my databanks.'),
+		.setDescription('Health check the known public RPC nodes.'),
 		async execute(interaction) {
 			try {
 				await interaction.deferReply()

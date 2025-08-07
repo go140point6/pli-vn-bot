@@ -1,0 +1,4 @@
+discord_id,discord_name,warning_threshold,critical_threshold
+123456789012345678,lois,3,1
+876543210987654321,clark,3,1
+111222333444555666,krypto,3,1
