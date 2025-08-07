@@ -6,10 +6,14 @@ const path = require('node:path');
 const { REST, Routes, Collection, ChannelType, ActivityType, MembershipScreeningFieldType } = require('discord.js');
 const axios = require('axios');
 const { getAddressBalance } = require('../main/getBalance');
-const { getAllRows } = require('../main/dbOperations.js');
 const { getPrices } = require('../utils/getPrices');
 const { getNodes } = require('../utils/getNodes');
 const { clearRoles, setRed, setGreen } = require('../utils/setRoles')
+const Database = require('better-sqlite3');
+
+const db = new Database(path.join(__dirname, '../data/validators.db'), {
+  fileMustExist: true
+});
 
 async function onReady(client) {
     console.log(`Ready! Logged in as ${client.user.tag}`)
@@ -60,72 +64,77 @@ async function onReady(client) {
     //getXRPToken(); 
     //setInterval(getXRPToken, Math.max(1, 5 || 1) * 60 * 1000);
 
-    //const addressToCheck = "0xf87A639bCE2064aBA1833a2ADeB1caD5800b46bD"
+async function checkBalances() {
+  const validators = db.prepare(`SELECT discord_id, address FROM validators`).all();
 
-    // let symbol = 'plugin'
-    // let fixed = '4'
-    // getPrices(symbol, fixed)
-    // setInterval(() => {
-    //     try {
-    //         getPrices(symbol, fixed)
-    //     } catch (error) {
-    //         console.error('Error getting prices:', error)
-    //     }
-    // }, Math.max(1, 5 || 1) * 60 * 1000) // every 5 minutes
+  for (const { discord_id, address } of validators) {
+    if (!address || !address.trim()) continue;
 
-    // async function checkBalance() {
-    //     try {
-    //         const balance = await getAddressBalance(addressToCheck);
-    //         console.log(`Balance of ${addressToCheck}: ${balance} XDC`);
-    //     } catch (error) {
-    //         console.error('Error:', error);
-    //     }
-    // }
+    try {
+      const balance = await getAddressBalance(address);
+      const numericBalance = parseFloat(balance);
+      console.log(`Balance of ${address} (user ${discord_id}): ${numericBalance} XDC`);
 
-    // async function checkBalances() {
-    //     const userNodeMap = client.userNodeMap;
+      const user = db.prepare(`
+        SELECT warning_threshold, critical_threshold, accepts_dm, warned
+        FROM users WHERE discord_id = ?
+      `).get(discord_id);
 
-    //     for (const [discordId, address] of Object.entries(userNodeMap)) {
-    //         if (!address || !address.trim()) continue;
+      if (!user) {
+        console.warn(`⚠️ No user record found for ${discord_id}, skipping alert check.`);
+        continue;
+      }
 
-    //         try {
-    //             const balance = await getAddressBalance(address);
-    //             console.log(`Balance of ${address} (user ${discordId}): ${balance} XDC`);
-    //         } catch (error) {
-    //             console.error(`Error checking balance for ${address} (user ${discordId}):`, error);
-    //         }
-    //     }
-    // }
+      const { warning_threshold, critical_threshold, accepts_dm, warned } = user;
+      let messageToSend = null;
+      let isWarning = false;
 
-    async function checkBalances() {
-        const userNodeMap = client.userNodeMap;
+      if (numericBalance < critical_threshold) {
+        messageToSend =
+          `🚨 **CRITICAL ALERT** 🚨\nYour validator node at \`${address}\` has a dangerously low balance of **${numericBalance} XDC**.\n` +
+          `Immediate action is recommended to avoid performance issues.`;
+        db.prepare(`UPDATE users SET warned = 0 WHERE discord_id = ?`).run(discord_id);
+      } else if (numericBalance < warning_threshold && warned === 0) {
+        messageToSend =
+          `⚠️ Warning: Your validator node at \`${address}\` has a low gas balance of **${numericBalance} XDC**.\n` +
+          `Please top up to avoid future disruptions.`;
+        isWarning = true;
+      } else if (numericBalance >= warning_threshold && warned === 1) {
+        // ✅ Balance recovered — clear warning flag
+        db.prepare(`UPDATE users SET warned = 0 WHERE discord_id = ?`).run(discord_id);
+        console.log(`✅ Balance restored for ${discord_id}, cleared warning flag.`);
+      }
 
-        for (const [discordId, address] of Object.entries(userNodeMap)) {
-            if (!address || !address.trim()) continue;
+      if (messageToSend) {
+        try {
+          const userObj = await client.users.fetch(discord_id);
+          await userObj.send(messageToSend);
+          console.log(`🔔 Sent ${isWarning ? 'warning' : 'critical'} alert to user ${discord_id}`);
 
+          // ✅ Mark warning as sent only after successful DM
+          if (isWarning) {
+            db.prepare(`UPDATE users SET warned = 1 WHERE discord_id = ?`).run(discord_id);
+          }
+
+        } catch (dmError) {
+          console.warn(`❌ Could not DM user ${discord_id}:`, dmError.message);
+
+          if (accepts_dm === 1) {
             try {
-                const balance = await getAddressBalance(address);
-                console.log(`Balance of ${address} (user ${discordId}): ${balance} XDC`);
-
-                const numericBalance = parseFloat(balance);
-                if (numericBalance < 5) {
-                    try {
-                        const user = await client.users.fetch(discordId);
-                        await user.send(
-                            `⚠️ Heads up! Your validator node at \`${address}\` only has **${numericBalance} XDC** available.\n` +
-                            `Please top up your gas balance to avoid disruptions.`
-                        );
-                        console.log(`🔔 Sent low-balance alert to user ${discordId}`);
-                    } catch (dmError) {
-                        console.warn(`❌ Could not DM user ${discordId}:`, dmError.message);
-                    }
-                }
-
-            } catch (error) {
-                console.error(`Error checking balance for ${address} (user ${discordId}):`, error);
+              db.prepare('UPDATE users SET accepts_dm = 0 WHERE discord_id = ?').run(discord_id);
+              console.log(`🔧 Updated accepts_dm to 0 for user ${discord_id}`);
+            } catch (dbErr) {
+              console.error(`❌ Failed to update accepts_dm for user ${discord_id}:`, dbErr.message);
             }
+          }
         }
+      }
+
+    } catch (error) {
+      console.error(`Error checking balance for ${address} (user ${discord_id}):`, error);
     }
+  }
+}
 
     var lastPrice
     var arrow
@@ -174,7 +183,6 @@ async function onReady(client) {
             console.error("Error setting presence:", error)
         }
     }
-
 
     //getNodes()
     setPresence()

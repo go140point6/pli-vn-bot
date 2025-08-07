@@ -3,14 +3,10 @@ const client = require('../index');
 const { testWebSocketReachability, testWSSBlockchainSync } = require('../main/wssCheck');
 const { checkWss,  } = require('../main/dbOperations');
 
-// const embed = new EmbedBuilder()
-// 	.setTitle('check-wss')
-// 	.setDescription('health check the wss nodes in my databanks.')
-
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('check-public-wss')
-		.setDescription('Health check the public wss nodes in my databanks.'),
+		.setDescription('Health check the known public WSS nodes.'),
 		async execute(interaction) {
 			try {
 				await interaction.deferReply()
