@@ -21,121 +21,153 @@ function loadCSV(filePath, handleRow) {
 // Import functions
 
 async function importDatasources() {
-  const stmt = db.prepare(`INSERT OR IGNORE INTO datasources (datasource_name) VALUES (?);`);
+  const stmt = db.prepare(`INSERT INTO datasources (datasource_name) VALUES (?);`);
   await loadCSV(path.join(__dirname, '../data/datasources.csv'), (row) => {
-    const name = (row.datasource_name || '').toLowerCase().trim();
-    if (name) stmt.run(name);
+    try {
+      const name = (row.datasource_name || '').toLowerCase().trim();
+      if (name) stmt.run(name);
+    } catch (err) {
+      console.error('❌ Error inserting datasource:', row, err.message);
+    }
   });
   console.log('🧪 Imported datasources');
 }
 
 async function importUsers() {
   const stmt = db.prepare(`
-    INSERT OR IGNORE INTO users (discord_id, discord_name, accepts_dm, warning_threshold, critical_threshold)
+    INSERT INTO users (discord_id, discord_name, accepts_dm, warning_threshold, critical_threshold)
     VALUES (?, ?, ?, ?, ?);
   `);
   await loadCSV(path.join(__dirname, '../data/users.csv'), (row) => {
-    const discord_id = row.discord_id?.trim();
-    if (!/^\d{17,20}$/.test(discord_id)) {
-      console.warn(`⚠️ Skipping invalid discord_id: ${row.discord_id}`);
-      return;
+    try {
+      const discord_id = row.discord_id?.trim();
+      if (!/^\d{17,20}$/.test(discord_id)) {
+        console.warn(`⚠️ Skipping invalid discord_id: ${row.discord_id}`);
+        return;
+      }
+      const accepts_dm = row.accepts_dm !== undefined ? parseInt(row.accepts_dm) : 0;
+      stmt.run(
+        discord_id,
+        row.discord_name,
+        accepts_dm,
+        parseInt(row.warning_threshold),
+        parseInt(row.critical_threshold)
+      );
+    } catch (err) {
+      console.error('❌ Error inserting user:', row, err.message);
     }
-
-    const accepts_dm = row.accepts_dm !== undefined ? parseInt(row.accepts_dm) : 0;
-    stmt.run(discord_id, row.discord_name, accepts_dm, row.warning_threshold, row.critical_threshold);
   });
   console.log('👤 Imported users');
 }
 
 async function importValidators() {
   const stmt = db.prepare(`
-    INSERT OR IGNORE INTO validators (address, discord_id, discord_name)
+    INSERT INTO validators (address, discord_id, discord_name)
     VALUES (?, ?, ?);
   `);
   await loadCSV(path.join(__dirname, '../data/validators.csv'), (row) => {
-    const discord_id = row.discord_id?.trim();
-    if (!/^\d{17,20}$/.test(discord_id)) {
-      console.warn(`⚠️ Skipping validator with invalid discord_id: ${row.discord_id}`);
-      return;
+    try {
+      const discord_id = row.discord_id?.trim();
+      if (!/^\d{17,20}$/.test(discord_id)) {
+        console.warn(`⚠️ Skipping validator with invalid discord_id: ${row.discord_id}`);
+        return;
+      }
+      stmt.run(row.address, discord_id, row.discord_name);
+    } catch (err) {
+      console.error('❌ Error inserting validator:', row, err.message);
     }
-
-    stmt.run(row.address, discord_id, row.discord_name);
   });
   console.log('🔗 Imported validators');
 }
 
 async function importContracts() {
   const stmt = db.prepare(`
-    INSERT OR IGNORE INTO contracts (address, pair, base, quote, active)
+    INSERT INTO contracts (address, pair, base, quote, active)
     VALUES (?, ?, ?, ?, ?);
   `);
   await loadCSV(path.join(__dirname, '../data/contracts.csv'), (row) => {
-    const active = row.active === '1' ? 1 : 0;
-    stmt.run(row.address, row.pair, row.base, row.quote, active);
+    try {
+      const active = row.active === '1' ? 1 : 0;
+      stmt.run(row.address, row.pair, row.base, row.quote, active);
+    } catch (err) {
+      console.error('❌ Error inserting contract:', row, err.message);
+    }
   });
   console.log('📄 Imported contracts');
 }
 
 async function importDatasourceContractMap() {
   const stmt = db.prepare(`
-    INSERT OR IGNORE INTO datasource_contract_map
+    INSERT INTO datasource_contract_map
     (datasource_name, contract_address, contract_pair_id, datasource_pair_id, base, quote)
     VALUES (?, ?, ?, ?, ?, ?);
   `);
   await loadCSV(path.join(__dirname, '../data/datasource_contract_map.csv'), (row) => {
-    stmt.run(
-      row.datasource_name.toLowerCase().trim(),
-      row.contract_address,
-      row.contract_pair_id,
-      row.datasource_pair_id || null,
-      row.base,
-      row.quote
-    );
+    try {
+      stmt.run(
+        row.datasource_name.toLowerCase().trim(),
+        row.contract_address,
+        row.contract_pair_id,
+        row.datasource_pair_id || null,
+        row.base,
+        row.quote
+      );
+    } catch (err) {
+      console.error('❌ Error inserting datasource_contract_map:', row, err.message);
+    }
   });
   console.log('🗺️  Imported datasource_contract_map');
 }
 
 async function importMnRpc() {
   const stmt = db.prepare(`
-    INSERT OR IGNORE INTO mn_rpc (mn, name, discord_id, public)
+    INSERT INTO mn_rpc (mn, name, discord_id, public)
     VALUES (?, ?, ?, ?);
   `);
-
   await loadCSV(path.join(__dirname, '../data/mn_rpc.csv'), (row) => {
-    const isPublic = row.public === '1' ? 1 : 0;
-    const discord_id = row.discord_id?.toLowerCase() === 'null' || row.discord_id === ''
-      ? null
-      : row.discord_id.trim();
-
-    stmt.run(row.mn, row.name, discord_id, isPublic);
+    try {
+      const isPublic = row.public?.toString().trim() === '1' ? 1 : 0;
+      const discord_id = row.discord_id?.toLowerCase() === 'null' || row.discord_id === ''
+        ? null
+        : row.discord_id.trim();
+      stmt.run(row.mn, row.name, discord_id, isPublic);
+    } catch (err) {
+      console.error('❌ Error inserting mn_rpc:', row, err.message);
+    }
   });
-
   console.log('🌐 Imported mn_rpc');
 }
 
 async function importMnWss() {
   const stmt = db.prepare(`
-    INSERT OR IGNORE INTO mn_wss (mn, name, discord_id, public)
+    INSERT INTO mn_wss (mn, name, discord_id, public)
     VALUES (?, ?, ?, ?);
   `);
   await loadCSV(path.join(__dirname, '../data/mn_wss.csv'), (row) => {
-    const isPublic = row.public === '1' ? 1 : 0;
-    const discord_id = row.discord_id?.toLowerCase() === 'null' || row.discord_id === ''
-      ? null
-      : row.discord_id.trim();
-
-    stmt.run(row.mn, row.name, discord_id, isPublic);
+    try {
+      const isPublic = row.public?.toString().trim() === '1' ? 1 : 0;
+      const discord_id = row.discord_id?.toLowerCase() === 'null' || row.discord_id === ''
+        ? null
+        : row.discord_id.trim();
+      stmt.run(row.mn, row.name, discord_id, isPublic);
+    } catch (err) {
+      console.error('❌ Error inserting mn_wss:', row, err.message);
+    }
   });
   console.log('📡 Imported mn_wss');
 }
 
 async function importValidatorContracts() {
   const stmt = db.prepare(`
-    INSERT OR IGNORE INTO validator_contracts (validator_address, contract_address)
+    INSERT INTO validator_contracts (validator_address, contract_address)
     VALUES (?, ?);
   `);
   await loadCSV(path.join(__dirname, '../data/validator_contracts.csv'), (row) => {
-    stmt.run(row.validator_address, row.contract_address);
+    try {
+      stmt.run(row.validator_address, row.contract_address);
+    } catch (err) {
+      console.error('❌ Error inserting validator_contracts:', row, err.message);
+    }
   });
   console.log('📎 Imported validator_contracts');
 }
@@ -144,7 +176,7 @@ async function main() {
   try {
     console.log('\n🚀 Starting data import...\n');
 
-    db.pragma('foreign_keys = ON'); // ✅ Ensure FK constraints are enforced
+    db.pragma('foreign_keys = ON');
 
     await importDatasources();
     await importUsers();
