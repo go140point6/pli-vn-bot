@@ -39,21 +39,21 @@ async function initialEmbed(interaction) {
 		//console.log(results)
 
 		let setDesc = 'This is a health check of the following public RPC:'
-		let setFields = results.map(({ rpcURL, result }) => {
+		let setFields = results.map(({ RPCURL_50, result }) => {
 			if (result !== undefined) {
 				if (result.error !== undefined) {
 					return {
-						name: `MN: ${rpcURL}`,
+						name: `MN: ${RPCURL_50}`,
 						value: `:warning: Error reaching RPC endpoint: ${result.error}`
 					};
 				} else if (result.syncing !== undefined && result.syncing !== false) {
 					return {
-						name: `MN: ${rpcURL}`,
-						value: `:x: RPC ${rpcURL} is reachable but not fully synchronized, currentBlock: ${result.syncing.currentBlock} highestBlock: ${result.syncing.highestBlock}`
+						name: `MN: ${RPCURL_50}`,
+						value: `:x: RPC ${RPCURL_50} is reachable but not fully synchronized, currentBlock: ${result.syncing.currentBlock} highestBlock: ${result.syncing.highestBlock}`
 					};
 				} else {
 					return {
-						name: `MN: ${rpcURL}`,
+						name: `MN: ${RPCURL_50}`,
 						value: `:white_check_mark: RPC is reachable and fully synchronized.`
 					};
 				}
@@ -61,12 +61,12 @@ async function initialEmbed(interaction) {
 				// Check for invalid JSON response
 				if (typeof result === 'string' && result.includes('Invalid JSON')) {
 					return {
-						name: `MN: ${rpcURL}`,
+						name: `MN: ${RPCURL_50}`,
 						value: `:warning: Error reaching RPC endpoint: Invalid JSON RPC response`
 					}
 				} else {
 					return {
-						name: `MN: ${rpcURL}`,
+						name: `MN: ${RPCURL_50}`,
 						value: `:warning: Error reaching RPC endpoint: Unknown error`
 					}
 				}
@@ -95,10 +95,10 @@ async function initialCheck() {
 		  } else {
 			//console.log(`RPC ${rpc.mn} is reachable but not fully synchronized, currentBlock: ${result.syncing.currentBlock} highestBlock: ${result.syncing.highestBlock}`)
 		  }
-		  results.push({ rpcURL: rpc.mn, result })
+		  results.push({ RPCURL_50: rpc.mn, result })
 		} catch (error) {
 			//console.error(`Error processing ${rpc.mn}:`, error.message)
-			results.push({ rpcURL: rpc.mn, error: error.message })
+			results.push({ RPCURL_50: rpc.mn, error: error.message })
 		}
 	}
 	return results

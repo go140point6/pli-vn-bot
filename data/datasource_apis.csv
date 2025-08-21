@@ -1,0 +1,8 @@
+datasource_name,base_url,response_path,headers
+bitmart,https://api-cloud.bitmart.com/spot/quotation/v3/ticker?symbol=${pair_id},data.last,
+bitrue,https://openapi.bitrue.com/api/v1/ticker/price?symbol=${pair_id},price,
+coingecko,https://api.coingecko.com/api/v3/simple/price?ids=${pair_id}&vs_currencies=usd,${pair_id}.usd,
+coinmarketcap,https://pro-api.coinmarketcap.com/v2/cryptocurrency/quotes/latest?symbol=${base}&convert=${quote},data.${base}.0.quote.${quote}.price,"{""X-CMC_PRO_API_KEY"": ""${api_key}""}"
+coinpaprika,https://api.coinpaprika.com/v1/tickers/${pair_id}?quotes=USD,quotes.USD.price,
+cryptocompare,https://min-api.cryptocompare.com/data/price?fsym=${base}&tsyms=${quote},${quote},
+lbank,https://api.lbank.info/v2/ticker.do?symbol=${pair_id},ticker.last,

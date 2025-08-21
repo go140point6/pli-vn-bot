@@ -1,7 +1,7 @@
 const Xdc3 = require("xdc3");
 
 const xdc3 = new Xdc3(
-    new Xdc3.providers.HttpProvider(process.env.RPCURL)
+    new Xdc3.providers.HttpProvider(process.env.RPCURL_50)
 )
 
 async function getAddressBalance(address) {

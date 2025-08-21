@@ -1,12 +1,33 @@
+// commands/my-validator.js
 const { SlashCommandBuilder } = require('discord.js');
 const { MessageFlags } = require('discord-api-types/v10');
-const Xdc3 = require('xdc3');
+const { JsonRpcProvider, Contract, formatEther } = require('ethers');
 const FluxABI = require('@goplugin/contracts/abi/v0.6/FluxAggregator.json');
-const Database = require('better-sqlite3');
-const path = require('path');
+const { getDb } = require('../db'); // singleton DB from db/index.js
 
-const xdc3 = new Xdc3(new Xdc3.providers.HttpProvider(process.env.RPCURL));
-const db = new Database(path.join(__dirname, '../data/validators.db'));
+// --- Provider (ethers v6) ---
+// Prefer XDC_RPC_HTTP; fall back to legacy RPCURL_50 for compatibility.
+const RPC_URL = process.env.XDC_RPC_HTTP || process.env.RPCURL_50;
+if (!RPC_URL) {
+  // Fail fast so you notice the misconfig immediately.
+  throw new Error('Missing RPC URL. Set XDC_RPC_HTTP (preferred) or RPCURL_50 in your .env');
+}
+const provider = new JsonRpcProvider(RPC_URL, { name: 'xdc', chainId: 50 });
+
+// Small helper: show pair if available, else base/quote, else address
+function labelFor(pair, base, quote, addr) {
+  if (pair && String(pair).trim() !== '') return pair;
+  if (base && quote) return `${base}/${quote}`;
+  return addr;
+}
+
+const db = getDb();
+
+// Prepared statements
+const selValidatorAddr = db.prepare(`SELECT address FROM validators WHERE discord_id = ?`);
+const selActiveContracts = db.prepare(`SELECT address, pair, base, quote FROM contracts WHERE active = 1`);
+const selUserDM = db.prepare(`SELECT accepts_dm FROM users WHERE discord_id = ?`);
+const setDM = db.prepare(`UPDATE users SET accepts_dm = ? WHERE discord_id = ?`);
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -18,11 +39,8 @@ module.exports = {
 
     const discordId = interaction.user.id;
 
-    // Get node address from validators table
-    const validator = db.prepare(`
-      SELECT address FROM validators WHERE discord_id = ?
-    `).get(discordId);
-
+    // Get node address from validators table (stored canonical 0x lowercase)
+    const validator = selValidatorAddr.get(discordId);
     if (!validator) {
       return interaction.editReply(`❌ Your Discord ID is **not** an active validator.`);
     }
@@ -32,37 +50,36 @@ module.exports = {
       return interaction.editReply(`⚠️ You are a validator, but there is no record of your node address.`);
     }
 
-    // Get all active contracts
-    const contracts = db.prepare(`
-      SELECT address, pair FROM contracts WHERE active = 1
-    `).all();
+    // Active contracts
+    const contracts = selActiveContracts.all();
 
     const results = [];
     let balanceInXDC = '0';
 
     try {
-      const balance = await xdc3.eth.getBalance(nodeAddr);
-      balanceInXDC = xdc3.utils.fromWei(balance, 'ether');
+      const balanceWei = await provider.getBalance(nodeAddr);
+      balanceInXDC = formatEther(balanceWei);
     } catch (error) {
       console.error('Error fetching balance:', error.message);
     }
 
-    for (const { address: contractAddr, pair } of contracts) {
+    for (const { address: contractAddr, pair, base, quote } of contracts) {
+      const display = labelFor(pair, base, quote, contractAddr);
       try {
-        const contract = new xdc3.eth.Contract(FluxABI, contractAddr);
-        const oracles = await contract.methods.getOracles().call();
+        const contract = new Contract(contractAddr, FluxABI, provider);
 
-        if (!oracles.some(o => o.toLowerCase() === nodeAddr.toLowerCase())) {
-          continue;
-        }
+        const oracles = await contract.getOracles(); // array<string>
+        const isParticipating = oracles.some(o => String(o).toLowerCase() === nodeAddr.toLowerCase());
+        if (!isParticipating) continue;
 
-        const raw = await contract.methods.withdrawablePayment(nodeAddr).call();
-        const pli = xdc3.utils.fromWei(raw, 'ether');
+        // withdrawablePayment(address oracle) -> uint256 (18 decimals for PLI)
+        const raw = await contract.withdrawablePayment(nodeAddr);
+        const pli = formatEther(raw);
 
-        results.push(`✅ **${pair}** → **${pli} PLI**`);
+        results.push(`✅ **${display}** → **${pli} PLI**`);
       } catch (err) {
         console.error(`Error with contract ${contractAddr}:`, err.message);
-        results.push(`⚠️ **${pair || contractAddr}** → Error: ${err.message}`);
+        results.push(`⚠️ **${display}** → Error: ${err.message}`);
       }
     }
 
@@ -71,14 +88,14 @@ module.exports = {
     }
 
     await interaction.editReply(
-      `📊 Withdrawable payments for your node:\n **${nodeAddr}**\n\n` +
+      `📊 Withdrawable payments for your node:\n**${nodeAddr}**\n\n` +
       results.join('\n') +
       '\n\n' +
       `⛽ Current XDC gas balance:\n💰 **${balanceInXDC} XDC**`
     );
 
-    // DM confirmation logic using DB
-    const user = db.prepare(`SELECT accepts_dm FROM users WHERE discord_id = ?`).get(discordId);
+    // DM confirmation logic
+    const user = selUserDM.get(discordId);
     const canDM = user?.accepts_dm === 1;
 
     if (!canDM) {
@@ -86,9 +103,7 @@ module.exports = {
         await interaction.user.send(
           '👍 I can DM you! You’ll receive low gas and other alerts here.'
         );
-
-        // Update accepts_dm to 1
-        db.prepare(`UPDATE users SET accepts_dm = 1 WHERE discord_id = ?`).run(discordId);
+        setDM.run(1, discordId);
         console.log(`✅ DMs enabled and confirmed for ${discordId}`);
       } catch (dmError) {
         console.warn(`❌ Could not DM user ${discordId}:`, dmError.message);
@@ -99,8 +114,7 @@ module.exports = {
           ephemeral: true,
         });
 
-        // Re-confirm that DMs are disabled
-        db.prepare(`UPDATE users SET accepts_dm = 0 WHERE discord_id = ?`).run(discordId);
+        setDM.run(0, discordId);
       }
     }
   }

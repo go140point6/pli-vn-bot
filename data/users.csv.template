@@ -1,4 +1,4 @@
-discord_id,discord_name,warning_threshold,critical_threshold
-123456789012345678,lois,3,1
-876543210987654321,clark,3,1
-111222333444555666,krypto,3,1
+discord_id,discord_name,accepts_dm,is_admin,warning_threshold,critical_threshold
+123456789012345678,lois,1,1,3,1
+876543210987654321,clark,0,0,3,1
+111222333444555666,krypto,0,0,3,1

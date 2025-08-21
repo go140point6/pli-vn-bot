@@ -1,3 +1,7 @@
-const sleep = async (ms) => await new Promise(r => setTimeout(r,ms));
+const sleep = async (ms) => new Promise(r => setTimeout(r,ms));
 
-exports.sleep = sleep;
+exports.sleep = sleep
+
+module.exports = {
+    sleep
+}
