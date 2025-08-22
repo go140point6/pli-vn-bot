@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const client = require('../index');
-const { testWebSocketReachability, testWSSBlockchainSync } = require('../main/wssCheck');
-const { checkWss,  } = require('../main/dbOperations');
+const { testWebSocketReachability, testWSSBlockchainSync } = require('../services/wssCheck');
+const { checkWss,  } = require('../db/dbOperations');
 
 module.exports = {
 	data: new SlashCommandBuilder()

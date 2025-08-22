@@ -27,6 +27,9 @@ function xdcTo0x(s) {
   return s.replace(/^xdc/i, '0x');
 }
 
+// Alias for readability in newer callers
+const to0x = xdcTo0x;
+
 function zeroXToXdc(s) {
   if (typeof s !== 'string') return s;
   return s.replace(/^0x/i, 'xdc');
@@ -69,6 +72,16 @@ function toLower0x(input) {
   return '0x' + s.slice(2).toLowerCase();
 }
 
+/**
+ * Keep the caller's original prefix style.
+ * - original: the input address as provided by the user
+ * - checksummed0x: an EIP-55 0x… address (e.g., from toEip55 or ethers.getAddress)
+ * Returns an address with EIP-55 body and the same prefix the user used.
+ */
+function withSamePrefix(original, checksummed0x) {
+  return /^xdc/i.test(String(original)) ? zeroXToXdc(checksummed0x) : checksummed0x;
+}
+
 module.exports = {
   toEip55,
   isValidEip55,
@@ -76,4 +89,7 @@ module.exports = {
   toLower0x,
   xdcTo0x,
   zeroXToXdc,
+  // new convenience exports
+  to0x,
+  withSamePrefix,
 };

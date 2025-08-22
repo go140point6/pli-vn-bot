@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const client = require('../index');
-const { testRPCReachability, testRPCBlockchainSync, testLatestBlockNumber } = require('../main/rpcCheck');
-const { checkRpc } = require('../main/dbOperations');
+const { testRPCReachability, testRPCBlockchainSync, testLatestBlockNumber } = require('../services/rpcCheck');
+const { checkRpc } = require('../db/dbOperations');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -82,7 +82,7 @@ async function initialEmbed(interaction) {
 }
 
 async function initialCheck() {
-	const rpcList = await checkRpc(true)
+	const rpcList = checkRpc(true)
 	const results = []
 	//console.log(rpcList)
 	for (const rpc of rpcList) {

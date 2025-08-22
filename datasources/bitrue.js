@@ -5,7 +5,7 @@ const { insertSnapshot, selMappingsBySource } = require('../db/statements');
 const { raiseDsErrorForAdmins, resolveDsErrorForAdmins } = require('../services/alerts');
 const { THROTTLE_MS, getNestedValue, toNumOrNull, mustGetApiMeta, buildHeaders } = require('./common');
 const { sleep } = require('../utils/sleep');
-const { maybeForceStallPrice } = require('../utils/testing');
+const { maybeForceStallPrice } = require('../dev/testing');
 
 async function fetchBitruePrices(client, runId, digest) {
   return withRun(client, runId, digest, async (rid, d) => {

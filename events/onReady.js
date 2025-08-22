@@ -2,8 +2,8 @@ require('dotenv').config();
 const fs = require('node:fs');
 const path = require('node:path');
 const { REST, Routes, Collection, ActivityType } = require('discord.js');
-const { setPresence } = require('../main/setPresence');
-const { checkBalances } = require('../main/checkBalances');
+const { setPresence } = require('../services/setPresence');
+const { checkBalances } = require('../services/checkBalances');
 const { fetchAllDatasourcePrices } = require('../jobs/fetchDatasourcePrices');
 const INTERVAL_MS = parseInt(process.env.FETCH_INTERVAL_SEC || '270', 10) * 1000;
 
@@ -43,16 +43,16 @@ async function onReady(client) {
   // ⏱️ Recurring tasks
 
   // For number of active nodes, color and arrows for bot
-  await setPresence(client);
-  setInterval(() => setPresence(client), 2 * 60 * 1000); // every 5 min
+  //await setPresence(client);
+  //setInterval(() => setPresence(client), 2 * 60 * 1000); // every 5 min
 
   // Check each validator gas levels
   await checkBalances(client);
-  setInterval(() => checkBalances(client), 12 * 60 * 60 * 1000); // every 12 hours
+  //setInterval(() => checkBalances(client), 12 * 60 * 60 * 1000); // every 12 hours
 
   await fetchAllDatasourcePrices(client);
   // Every 2 Minutes for testing
-  setInterval(() => fetchAllDatasourcePrices(client), 2 * 60 * 1000);
+  //setInterval(() => fetchAllDatasourcePrices(client), 2 * 60 * 1000);
   // Every X Minutes based on .env
   //setInterval(() => fetchAllDatasourcePrices(client), INTERVAL_MS);
 

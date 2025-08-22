@@ -1,10 +1,16 @@
 // checkBalances.js
-const { getAddressBalance } = require('./getBalance'); // can accept (address[, chainId])
+const { getAddressBalance } = require('./getBalance'); // (address[, rpcUrl])
+const { DB_FILE } = require('../utils/paths');
 const Database = require('better-sqlite3');
-const path = require('path');
 
-const db = new Database(path.join(__dirname, '../data/validators.db'), { fileMustExist: true });
+const db = new Database(DB_FILE, { fileMustExist: true });
 db.pragma('foreign_keys = ON');
+
+// --- map chain_id -> RPCURL_<id> from env
+function rpcUrlForChain(chain_id) {
+  const key = `RPCURL_${chain_id}`;
+  return process.env[key];
+}
 
 // ========== Prepared statements ==========
 const selValidators = db.prepare(`
@@ -46,7 +52,6 @@ function displayAddress({ chain_id, address, address_eip55, addr_format }) {
 }
 
 // Open/resolve alerts atomically for a single validator
-// Returns { opened: 'warning'|'critical'|null, resolvedTypes: string[] }
 const applyAlertStateTx = db.transaction(({ discord_id, chain_id, address, state, msgWarn, msgCrit, extra }) => {
   const openWarn = selOpenAlert.get(discord_id, chain_id, address, 'BALANCE_WARNING');
   const openCrit = selOpenAlert.get(discord_id, chain_id, address, 'BALANCE_CRITICAL');
@@ -72,7 +77,7 @@ const applyAlertStateTx = db.transaction(({ discord_id, chain_id, address, state
       insAlert.run(discord_id, chain_id, address, 'BALANCE_WARNING', 'warning', msgWarn, extra);
       opened = 'warning';
     }
-  } else { // state === 'ok'
+  } else { // ok
     if (openCrit) {
       resolveAlertById.run(openCrit.id);
       resolvedTypes.push('BALANCE_CRITICAL');
@@ -94,8 +99,17 @@ async function checkBalances(client) {
     if (!address) continue;
 
     try {
-      const bal = await getAddressBalance(address, chain_id);
-      const numericBalance = Number(bal);
+      // NEW: pick RPC by chain (e.g., RPCURL_50). If missing, skip safely.
+      const rpcUrl = rpcUrlForChain(chain_id);
+      if (!rpcUrl) {
+        console.warn(`⚠️ No RPCURL_${chain_id} set; skipping ${address} (user ${discord_id})`);
+        continue;
+      }
+
+      // NEW: pass rpcUrl (NOT chain_id) into getAddressBalance
+      const bal = await getAddressBalance(address, rpcUrl);
+
+      const numericBalance = parseFloat(bal);
       if (!Number.isFinite(numericBalance)) {
         console.warn(`⚠️ Non-numeric balance for ${address} (user ${discord_id}):`, bal);
         continue;
@@ -114,14 +128,12 @@ async function checkBalances(client) {
         continue;
       }
 
-      // Determine current state
       let state = 'ok';
       if (numericBalance < critical_threshold) state = 'critical';
       else if (numericBalance < warning_threshold) state = 'warning';
 
       const addrForDisplay = displayAddress({ chain_id, address, address_eip55, addr_format });
 
-      // Messages
       const msgCrit =
         `🚨 **CRITICAL ALERT** 🚨\nYour validator \`${addrForDisplay}\` has a ` +
         `dangerously low balance of **${numericBalance} XDC** (critical < ${critical_threshold}).\n` +
@@ -143,18 +155,16 @@ async function checkBalances(client) {
         checked_at: new Date().toISOString(),
       });
 
-      // Apply alert state (open/resolve/escalate)
       const { opened, resolvedTypes } = applyAlertStateTx({
         discord_id,
         chain_id,
-        address, // canonical lowercase 0x… (matches schema keys)
+        address,
         state,
         msgWarn,
         msgCrit,
         extra,
       });
 
-      // ----- DM sends for newly opened alerts -----
       if (opened && accepts_dm === 1) {
         try {
           const userObj = await client.users.fetch(discord_id);
@@ -169,7 +179,6 @@ async function checkBalances(client) {
         console.log(`📣 Opened ${opened} alert (DMs disabled) for ${userLabel} @ ${addrForDisplay}`);
       }
 
-      // ----- DM send for all-clear (when any alerts resolved and state is OK) -----
       if (state === 'ok' && resolvedTypes.length > 0) {
         if (accepts_dm === 1) {
           try {
@@ -186,12 +195,10 @@ async function checkBalances(client) {
         }
       }
 
-      // ----- Repeat DM failure notice while alerts are active and DMs are disabled -----
       if (accepts_dm === 0 && (state === 'critical' || state === 'warning')) {
         console.warn(`❌ Could not DM user ${userLabel}: Cannot send messages to this user`);
       }
 
-      // ----- Unified per-validator summary line (always printed) -----
       const openedLabel = opened ? opened : '-';
       const resolvedLabel = resolvedTypes.length ? resolvedTypes.join('+') : '-';
       console.log(
