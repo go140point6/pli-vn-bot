@@ -138,3 +138,7 @@ commands/check-my-masternodes.js.test
 data/users.csv
 data/validator_contracts.csv
 data/validators.csv
+data/validators.db-shm
+.gitignore
+data/validators.db-wal
+data/validator_owners.csv

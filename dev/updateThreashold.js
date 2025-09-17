@@ -4,7 +4,7 @@ const path = require('path');
 const dbPath = path.join(__dirname, '../data/validators.db');
 const db = new Database(dbPath, { fileMustExist: true });
 
-const discordId = '12345678901234567';
+const discordId = 'discordid';
 const newWarning = 200;
 const newCritical = 150;
 
