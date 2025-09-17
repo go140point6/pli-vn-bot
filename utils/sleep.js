@@ -1,7 +1,6 @@
-const sleep = async (ms) => new Promise(r => setTimeout(r,ms));
-
-exports.sleep = sleep
-
-module.exports = {
-    sleep
+// utils/sleep.js
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+module.exports = { sleep };

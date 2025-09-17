@@ -18,23 +18,35 @@ function toNumOrNull(v) {
 }
 
 function mustGetApiMeta(datasource) {
-  const meta = selApiMeta.get(datasource);
-  if (!meta) throw new Error(`No API metadata for ${datasource}`);
+  const ds = String(datasource || '').toLowerCase().trim();
+  const meta = selApiMeta.get(ds);
+  if (!meta) throw new Error(`No API metadata for ${ds}`);
   const { base_url, response_path } = meta;
-  if (!base_url || !String(base_url).trim()) throw new Error(`${datasource}: base_url missing/blank`);
-  if (!response_path || !String(response_path).trim()) throw new Error(`${datasource}: response_path missing/blank`);
+  if (!base_url || !String(base_url).trim()) throw new Error(`${ds}: base_url missing/blank`);
+  if (!response_path || !String(response_path).trim()) throw new Error(`${ds}: response_path missing/blank`);
   return meta;
 }
 
 // Only CMC: inject CMC_API_KEY; others: allow blank or static JSON (no env substitution)
 function buildHeaders(datasource, rawHeaders) {
   if (!rawHeaders) return {};
+
+  // If already an object (future-proof), return as-is
+  if (typeof rawHeaders === 'object') return rawHeaders;
+
   const s = String(rawHeaders).trim();
   if (!s || s.toLowerCase() === 'null') return {};
-  if (datasource !== 'coinmarketcap') {
-    try { return JSON.parse(s); }
-    catch { console.error(`❌ ${datasource} header JSON parse error`); return {}; }
+
+  if (String(datasource).toLowerCase() !== 'coinmarketcap') {
+    try {
+      return JSON.parse(s);
+    } catch {
+      console.error(`❌ ${datasource} header JSON parse error`);
+      return {};
+    }
   }
+
+  // CoinMarketCap: substitute ${api_key} with env
   try {
     const json = s.replace(/\$\{api_key\}/g, process.env.CMC_API_KEY || '');
     return JSON.parse(json);

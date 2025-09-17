@@ -141,3 +141,4 @@ data/validators.csv
 data/validators.db-shm
 .gitignore
 data/validators.db-wal
+data/validator_owners.csv

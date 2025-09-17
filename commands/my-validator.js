@@ -24,8 +24,20 @@ function labelFor(pair, base, quote, addr) {
 const db = getDb();
 
 // Prepared statements
-const selValidatorAddr = db.prepare(`SELECT address FROM validators WHERE discord_id = ?`);
-const selActiveContracts = db.prepare(`SELECT address, pair, base, quote FROM contracts WHERE active = 1`);
+// NEW: look up user's validator(s) via validator_owners on chain 50
+const selUserValidators = db.prepare(`
+  SELECT validator_address AS address
+  FROM validator_owners
+  WHERE discord_id = ? AND chain_id = 50
+`);
+
+// Limit active contracts to chain 50 to match the XDC provider
+const selActiveContracts = db.prepare(`
+  SELECT address, pair, base, quote
+  FROM contracts
+  WHERE active = 1 AND chain_id = 50
+`);
+
 const selUserDM = db.prepare(`SELECT accepts_dm FROM users WHERE discord_id = ?`);
 const setDM = db.prepare(`UPDATE users SET accepts_dm = ? WHERE discord_id = ?`);
 
@@ -39,18 +51,19 @@ module.exports = {
 
     const discordId = interaction.user.id;
 
-    // Get node address from validators table (stored canonical 0x lowercase)
-    const validator = selValidatorAddr.get(discordId);
-    if (!validator) {
-      return interaction.editReply(`❌ Your Discord ID is **not** an active validator.`);
+    // Get node address from validator_owners (canonical 0x lowercase)
+    const owned = selUserValidators.all(discordId);
+    if (!owned || owned.length === 0) {
+      return interaction.editReply(`❌ Your Discord ID is **not** associated with a validator on XDC.`);
     }
 
-    const nodeAddr = validator.address;
+    // Keep behavior the same as before: use the first validator address
+    const nodeAddr = owned[0].address;
     if (!nodeAddr || nodeAddr.trim() === '') {
       return interaction.editReply(`⚠️ You are a validator, but there is no record of your node address.`);
     }
 
-    // Active contracts
+    // Active contracts (XDC only)
     const contracts = selActiveContracts.all();
 
     const results = [];

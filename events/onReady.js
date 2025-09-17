@@ -1,16 +1,20 @@
 require('dotenv').config();
 const fs = require('node:fs');
 const path = require('node:path');
-const { REST, Routes, Collection, ActivityType } = require('discord.js');
+const { REST, Routes, Collection } = require('discord.js');
 const { setPresence } = require('../services/setPresence');
 const { checkBalances } = require('../services/checkBalances');
 const { fetchAllDatasourcePrices } = require('../jobs/fetchDatasourcePrices');
-const INTERVAL_MS = parseInt(process.env.FETCH_INTERVAL_SEC || '270', 10) * 1000;
+const { fetchOracleSubmissions } = require('../jobs/fetchOracleSubmissions');
+
+const INTERVAL_MS = parseInt(process.env.FETCH_INTERVAL_SEC || '270', 10) * 1000;              // DS→Oracle→Presence cadence
+const BALANCE_INTERVAL_MS = parseInt(process.env.BALANCE_INTERVAL_HOURS || '6', 10) * 60 * 60 * 1000; // default 6h
 
 async function onReady(client) {
   console.log(`Ready! Logged in as ${client.user.tag}`);
   client.commands = new Collection();
 
+  // ----- Load / register slash commands -----
   const commands = [];
   const commandsPath = path.join(__dirname, '..', 'commands');
   const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
@@ -27,7 +31,6 @@ async function onReady(client) {
   }
 
   const rest = new REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
-
   (async () => {
     try {
       const data = await rest.put(
@@ -40,44 +43,90 @@ async function onReady(client) {
     }
   })();
 
-  // ⏱️ Recurring tasks
+  // ===== Helpers =====
 
-  // For number of active nodes, color and arrows for bot
-  //await setPresence(client);
-  //setInterval(() => setPresence(client), 2 * 60 * 1000); // every 5 min
+  // Sequential, non-overlapping DS → Oracle → Presence pipeline
+  async function runPipelineOnce() {
+    const t0 = Date.now();
+    console.log('▶️  Pipeline start: fetchAllDatasourcePrices → fetchOracleSubmissions → setPresence');
 
-  // Check each validator gas levels
-  await checkBalances(client);
-  //setInterval(() => checkBalances(client), 12 * 60 * 60 * 1000); // every 12 hours
+    try { await fetchAllDatasourcePrices(client); }
+    catch (e) { console.error('❌ fetchAllDatasourcePrices failed:', e); }
 
-  await fetchAllDatasourcePrices(client);
-  // Every 2 Minutes for testing
-  //setInterval(() => fetchAllDatasourcePrices(client), 2 * 60 * 1000);
-  // Every X Minutes based on .env
-  //setInterval(() => fetchAllDatasourcePrices(client), INTERVAL_MS);
+    try { await fetchOracleSubmissions(client); }
+    catch (e) { console.error('❌ fetchOracleSubmissions failed:', e); }
 
-  // This is an example of how to run a function based on a time value
-  // In this example, getting XRP price and updating it every 5 minutes
-  //getXRPToken(); 
-  //setInterval(getXRPToken, Math.max(1, 5 || 1) * 60 * 1000);
+    try { await setPresence(client); }
+    catch (e) { console.error('❌ setPresence failed:', e); }
 
-  // async function getXRP() {
-  //     await axios.get(`https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=ripple`).then(res => {
-  //                if (res.data && res.data[0].current_price) {
-  //                 const currentXRP = res.data[0].current_price.toFixed(4) || 0 
-  //                 console.log("XRP current price: " + currentXRP);
-  //                 module.exports.currentXRP = currentXRP;
-  //             } else {
-  //                 console.log("Error loading coin data")
-  //             }
-  //         }).catch(err => {
-  //             console.log("An error with the Coin Gecko api call: ", err.response.status, err.response.statusText);
-  //     });
-  // };
+    const elapsed = Date.now() - t0;
+    console.log(`⏹️  Pipeline end (elapsed ${elapsed} ms)`);
+    return elapsed;
+  }
 
-  // async function getXRPToken() {
-  //     await getXRP();
-  // }
+  function startSequentialPipeline(intervalMs) {
+    let running = false;
+
+    async function tick() {
+      if (running) return; // guard
+      running = true;
+      try {
+        const elapsed = await runPipelineOnce();
+        const nextDelay = Math.max(0, intervalMs - elapsed);
+        if (nextDelay === 0) {
+          console.warn(`⏱️ Pipeline duration (${elapsed} ms) ≥ interval (${intervalMs} ms). Scheduling next immediately.`);
+        }
+        setTimeout(() => { running = false; tick(); }, nextDelay);
+      } catch (err) {
+        console.error('Unexpected pipeline error:', err);
+        running = false;
+        setTimeout(tick, intervalMs);
+      }
+    }
+
+    tick(); // kick off
+  }
+
+  // Balance checks (separate cadence, never overlap with themselves)
+  async function runBalancesOnce() {
+    const t0 = Date.now();
+    console.log('💰 Balance check start');
+    try { await checkBalances(client); }
+    catch (e) { console.error('❌ checkBalances failed:', e); }
+    const elapsed = Date.now() - t0;
+    console.log(`✅ Balance check end (elapsed ${elapsed} ms)`);
+    return elapsed;
+  }
+
+  function startBalancesScheduler(intervalMs) {
+    let running = false;
+
+    async function tick() {
+      if (running) return;
+      running = true;
+      try {
+        await runBalancesOnce();
+      } finally {
+        running = false;
+        setTimeout(tick, intervalMs);
+      }
+    }
+
+    // We already run one immediately at startup (see below),
+    // so schedule the NEXT one for +intervalMs.
+    setTimeout(tick, intervalMs);
+  }
+
+  // ===== Startup order you requested =====
+
+  // 1) Run balances immediately (so you can watch it at startup)
+  await runBalancesOnce();
+
+  // 2) After that completes, start the DS→Oracle→Presence pipeline
+  startSequentialPipeline(INTERVAL_MS);
+
+  // 3) Start the recurring balance scheduler (separate cadence)
+  startBalancesScheduler(BALANCE_INTERVAL_MS);
 }
 
 module.exports = { onReady };

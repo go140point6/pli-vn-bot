@@ -1,14 +1,16 @@
 // jobs/fetchOracleSubmissions.js
-// Pulls oracle submissions and ONLY writes them to oracle_price_snapshots.
-// — No stall detection
-// — No aggregation
-// — No admin/owner DMs as part of oracle runs
+// Pulls oracle submissions from each active FluxAggregator and stores them in
+// oracle_price_snapshots (per-run). Mirrors the datasource pattern:
+// - withRun(client, runId, 'oracle', worker, { label: 'oracle' })
+// - worker only receives rid (no digest)
+// - post-run swirly message after run finishes
 
 require('dotenv').config();
 const { ethers } = require('ethers');
 
 const { withRun } = require('../services/ingestRun');
 const { getDb } = require('../db');
+const { aggregateOracleStalls } = require('./aggregateOracleStalls'); // <<< added
 
 // FluxAggregator ABI (v0.6)
 const FluxABI = require('@goplugin/contracts/abi/v0.6/FluxAggregator.json');
@@ -171,14 +173,16 @@ async function fetchOracleSubmissions(client, runId = null) {
   await withRun(
     client,
     runId,
-    'oracle',   // label stored in ingest_runs.digest
+    'oracle',         // label stored in ingest_runs.digest
     async (rid) => {
       await _fetch(rid);
-      // NOTE: no stall detection or DM dispatch in this stripped mode.
+      // run the stall detector within the same run so alerts can reference this run_id
+      await aggregateOracleStalls(client, rid); // <<< added
     },
     { label: 'oracle' }
   );
 
+  // After the run is closed, emit the waiting message (mirrors datasource flow)
   console.log('🌀 All oracles fetched. Waiting for next cycle...');
 }
 

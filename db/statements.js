@@ -82,6 +82,23 @@ const resolveAlertById = db.prepare(`
   UPDATE alerts SET resolved_at = CURRENT_TIMESTAMP WHERE id = ?
 `);
 
+/* ---- NEW: validator-scoped versions for oracle stalls ---- */
+const selOpenAlertByValidator = db.prepare(`
+  SELECT id, extra
+  FROM alerts
+  WHERE discord_id = ?
+    AND chain_id = ?
+    AND validator_address = ?
+    AND alert_type = ?
+    AND resolved_at IS NULL
+  LIMIT 1
+`);
+
+const insAlertForValidator = db.prepare(`
+  INSERT INTO alerts (discord_id, chain_id, validator_address, alert_type, severity, message, extra)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+`);
+
 /* ========== Aggregation helpers (fresh data, outliers, stalls) ========== */
 /* cutoffEpoch is UNIX seconds */
 const selActiveContractsWithFreshData = db.prepare(`
@@ -159,6 +176,7 @@ module.exports = {
 
   // alerts
   selOpenAlert, insAlert, resolveAlertById,
+  selOpenAlertByValidator, insAlertForValidator,
 
   // aggregation helpers
   selActiveContractsWithFreshData,

@@ -1,29 +1,47 @@
 // services/ingestRun.js
-const { beginRunStmt, endRunStmt } = require('../db/statements');
+const { getDb } = require('../db');
+const db = getDb();
 
-function beginRun() {
-  const info = beginRunStmt.run();
-  const runId = info.lastInsertRowid;
-  console.log(`▶️  datasource run started (run_id=${runId})`);
-  return runId;
-}
-function endRun(runId) {
-  endRunStmt.run(runId);
-  console.log(`⏹️  datasource run finished (run_id=${runId})`);
-}
+const insRun = db.prepare(`INSERT INTO ingest_runs (digest) VALUES (?)`);
+const endRun = db.prepare(`UPDATE ingest_runs SET ended_at = CURRENT_TIMESTAMP WHERE id = ?`);
 
-// Generic run wrapper, with optional "after run" hook
-async function withRun(client, runId, digest, fn, onAfterRun) {
-  const haveRun = Number.isFinite(runId);
-  const rid = haveRun ? runId : beginRun();
+/**
+ * Create/continue an ingest run, execute a worker, then finish if created here.
+ *
+ * @param {*} client - not used by the helper, but forwarded for symmetry
+ * @param {number|null} runId - existing run id or null to create one
+ * @param {string|null} labelDigest - label stored in ingest_runs.digest (e.g., 'datasource', 'oracle')
+ * @param {(rid:number)=>Promise<any>} worker - body to execute (receives run id only)
+ * @param {{label?: string}} opts - console label, defaults to 'datasource'
+ * @returns {Promise<{result:any, runId:number}>}
+ */
+async function withRun(client, runId, labelDigest, worker, opts = {}) {
+  const label = opts.label || 'datasource';
+
+  // Normalize to a DB-bindable label string (or null)
+  const digestForDb =
+    labelDigest == null ? label :
+    (typeof labelDigest === 'string' ? labelDigest : String(labelDigest));
+
+  let rid = runId;
+  let createdHere = false;
+
+  if (!rid) {
+    const info = insRun.run(digestForDb);
+    rid = info.lastInsertRowid;
+    createdHere = true;
+    console.log(`${label} run started (run_id=${rid})`);
+  }
+
   try {
-    return await fn(rid, digest);
+    const result = await worker(rid);
+    return { result, runId: rid };
   } finally {
-    if (typeof onAfterRun === 'function') {
-      try { await onAfterRun(client, digest); } catch (e) { console.error('afterRun error:', e.message); }
+    if (createdHere) {
+      endRun.run(rid);
+      console.log(`${label} run finished (run_id=${rid})`);
     }
-    if (!haveRun) endRun(rid);
   }
 }
 
-module.exports = { beginRun, endRun, withRun };
+module.exports = { withRun };
